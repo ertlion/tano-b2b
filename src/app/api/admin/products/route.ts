@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { masterProducts, masterVariants } from "@/lib/schema";
-import { eq, like, and, sql, desc } from "drizzle-orm";
+import { masterProducts } from "@/lib/schema";
+import { eq, and, sql, desc } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   try {

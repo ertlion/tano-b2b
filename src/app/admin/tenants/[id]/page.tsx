@@ -75,6 +75,7 @@ export default function TenantDetailPage() {
 
   useEffect(() => {
     loadTenant();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
 
   async function handleApprove() {

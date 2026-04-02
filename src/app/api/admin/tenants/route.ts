@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { tenants } from "@/lib/schema";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   try {

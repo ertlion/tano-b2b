@@ -4,7 +4,6 @@ import { db } from "@/lib/db";
 import {
   tenantProducts,
   masterProducts,
-  masterVariants,
 } from "@/lib/schema";
 import { eq, and, sql, notInArray, desc } from "drizzle-orm";
 

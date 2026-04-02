@@ -319,6 +319,7 @@ export class TSoftAdapter implements MarketplaceAdapter {
 
   async getCategories(
     credentials: MarketplaceCredentials,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _parentId?: string
   ): Promise<CategoryNode[]> {
     try {

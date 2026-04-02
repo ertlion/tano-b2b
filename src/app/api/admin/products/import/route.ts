@@ -6,7 +6,6 @@ import { sendNewProductsEmail } from "@/lib/mailer";
 import { db } from "@/lib/db";
 import {
   tenants,
-  masterProducts,
   masterVariants,
 } from "@/lib/schema";
 import { and, eq, inArray } from "drizzle-orm";

@@ -4,11 +4,6 @@ import { useEffect, useState } from "react";
 
 type Marketplace = "shopify" | "ikas" | "tsoft" | "ideasoft";
 
-interface MarketplaceConfig {
-  marketplace: Marketplace;
-  credentials: Record<string, string>;
-}
-
 const MARKETPLACE_LABELS: Record<Marketplace, string> = {
   shopify: "Shopify",
   ikas: "ikas",

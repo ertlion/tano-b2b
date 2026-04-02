@@ -106,6 +106,7 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     loadOrder();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
   async function handleStatusUpdate() {

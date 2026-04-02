@@ -4,7 +4,6 @@ import { db } from "@/lib/db";
 import {
   orders,
   orderStatusHistory,
-  tenants,
   masterVariants,
   stockMovements,
 } from "@/lib/schema";

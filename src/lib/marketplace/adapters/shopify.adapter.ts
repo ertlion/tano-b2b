@@ -383,10 +383,8 @@ export class ShopifyAdapter implements MarketplaceAdapter {
     }
   }
 
-  async getBrands(
-    credentials: MarketplaceCredentials,
-    _query?: string
-  ): Promise<Array<{ id: string; name: string }>> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async getBrands(_credentials: MarketplaceCredentials, _query?: string): Promise<Array<{ id: string; name: string }>> {
     // Shopify does not have a dedicated brands API.
     // Vendors serve as brands but there is no list endpoint.
     return [];

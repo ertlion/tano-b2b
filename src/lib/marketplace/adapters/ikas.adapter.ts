@@ -68,6 +68,7 @@ export class IkasAdapter implements MarketplaceAdapter {
     return token;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async graphql(creds: IkasCredentials, query: string, variables?: Record<string, unknown>): Promise<any> {
     const token = await this.getToken(creds);
     const res = await fetch("https://api.myikas.com/api/v1/admin/graphql", {
@@ -86,7 +87,7 @@ export class IkasAdapter implements MarketplaceAdapter {
 
     const data = await res.json();
     if (data.errors && data.errors.length > 0) {
-      throw new Error(`ikas GraphQL: ${data.errors.map((e: any) => e.message).join(", ")}`);
+      throw new Error(`ikas GraphQL: ${data.errors.map((e: { message: string }) => e.message).join(", ")}`);
     }
 
     return data.data;
@@ -171,8 +172,8 @@ export class IkasAdapter implements MarketplaceAdapter {
         externalProductId: saved.id,
         externalVariantIds,
       };
-    } catch (err: any) {
-      return { success: false, error: err.message };
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
   }
 
@@ -202,8 +203,8 @@ export class IkasAdapter implements MarketplaceAdapter {
 
       await this.graphql(creds, mutation, { input });
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message };
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
   }
 
@@ -242,12 +243,12 @@ export class IkasAdapter implements MarketplaceAdapter {
             stock: v.stockQuantity,
           });
           updated++;
-        } catch (err: any) {
-          errors.push({ variantId: 0, sizeName: v.externalVariantId, error: err.message });
+        } catch (err: unknown) {
+          errors.push({ variantId: 0, sizeName: v.externalVariantId, error: err instanceof Error ? err.message : String(err) });
         }
       }
-    } catch (err: any) {
-      errors.push({ variantId: 0, sizeName: "", error: err.message });
+    } catch (err: unknown) {
+      errors.push({ variantId: 0, sizeName: "", error: err instanceof Error ? err.message : String(err) });
     }
 
     return { success: errors.length === 0, variantsUpdated: updated, errors };
@@ -289,8 +290,8 @@ export class IkasAdapter implements MarketplaceAdapter {
 
       await this.graphql(creds, mutation, { priceListId, variantPriceInputs });
       updated = variants.length;
-    } catch (err: any) {
-      errors.push({ variantId: 0, sizeName: "", error: err.message });
+    } catch (err: unknown) {
+      errors.push({ variantId: 0, sizeName: "", error: err instanceof Error ? err.message : String(err) });
     }
 
     return { success: errors.length === 0, variantsUpdated: updated, errors };
@@ -306,8 +307,8 @@ export class IkasAdapter implements MarketplaceAdapter {
       `;
       await this.graphql(creds, mutation, { input: { id: externalProductId, isActive: false } });
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message };
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
   }
 
@@ -317,7 +318,7 @@ export class IkasAdapter implements MarketplaceAdapter {
       const query = `query { listCategory { id name parentId } }`;
       const data = await this.graphql(creds, query);
       const categories = data.listCategory || [];
-      return categories.map((c: any) => ({
+      return categories.map((c: { id: string; name: string; parentId?: string }) => ({
         id: c.id,
         name: c.name,
         parentId: c.parentId || undefined,
@@ -347,11 +348,11 @@ export class IkasAdapter implements MarketplaceAdapter {
       const data = await this.graphql(creds, query, { categoryId });
       const attrs = data.listProductAttribute || [];
 
-      return attrs.map((a: any) => ({
+      return attrs.map((a: { id: string; name: string; isRequired?: boolean; values?: Array<{ id: string; name: string }> }) => ({
         id: a.id,
         name: a.name,
         required: a.isRequired ?? false,
-        values: (a.values || []).map((v: any) => ({
+        values: (a.values || []).map((v: { id: string; name: string }) => ({
           id: v.id,
           name: v.name,
         })),
@@ -377,7 +378,7 @@ export class IkasAdapter implements MarketplaceAdapter {
       `;
 
       const data = await this.graphql(creds, gql);
-      const brands: Array<{ id: string; name: string }> = (data.listBrand || []).map((b: any) => ({
+      const brands: Array<{ id: string; name: string }> = (data.listBrand || []).map((b: { id: string; name: string }) => ({
         id: b.id,
         name: b.name,
       }));
