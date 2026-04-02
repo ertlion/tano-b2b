@@ -10,6 +10,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+ENV DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
 RUN npm run build
 
 FROM base AS runner
