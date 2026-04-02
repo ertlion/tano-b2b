@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: tano
+      POSTGRES_PASSWORD: tano_secret_change_me
+      POSTGRES_DB: tano_b2b
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+
+  app:
+    build: .
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://tano:tano_secret_change_me@db:5432/tano_b2b
+      REDIS_URL: redis://redis:6379
+      SESSION_SECRET: change-me-to-random-string
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      SMTP_HOST: ""
+      SMTP_PORT: "587"
+      SMTP_USER: ""
+      SMTP_PASS: ""
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  postgres_data:
