@@ -12,6 +12,7 @@ import {
   createShopifyProduct,
   getShopifyProduct,
   updateShopifyInventory,
+  getAccessToken,
   getPrimaryLocationId,
   getLocationFromInventoryItem,
   type ShopifyCredentials,
@@ -72,7 +73,17 @@ export class ShopifyAdapter implements MarketplaceAdapter {
     credentials: MarketplaceCredentials
   ): Promise<boolean> {
     const shopifyCreds = toShopifyCreds(credentials);
-    await getPrimaryLocationId(shopifyCreds);
+    // Just verify we can get a token - don't require location
+    const res = await fetch(`https://${shopifyCreds.storeUrl}/admin/api/2024-01/shop.json`, {
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": await getAccessToken(shopifyCreds),
+      },
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Shopify API hatası: ${res.status} - ${err}`);
+    }
     return true;
   }
 

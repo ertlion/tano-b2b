@@ -17,7 +17,7 @@ async function rateLimitWait(storeUrl: string) {
 const tokenCache = new Map<string, { token: string; expiresAt: number }>();
 const locationCache = new Map<string, string>();
 
-async function getAccessToken(creds: ShopifyCredentials): Promise<string> {
+export async function getAccessToken(creds: ShopifyCredentials): Promise<string> {
   const cached = tokenCache.get(creds.storeUrl);
   if (cached && Date.now() < cached.expiresAt - 60_000) {
     return cached.token;
@@ -95,26 +95,24 @@ export async function getPrimaryLocationId(creds: ShopifyCredentials): Promise<s
   const cached = locationCache.get(creds.storeUrl);
   if (cached) return cached;
 
-  try {
-    const res = await fetch(`${getBaseUrl(creds)}/locations.json`, {
-      headers: await getHeaders(creds),
-    });
+  const res = await fetch(`${getBaseUrl(creds)}/locations.json`, {
+    headers: await getHeaders(creds),
+  });
 
-    if (res.ok) {
-      const data = await res.json();
-      const locations = data.locations as { id: number; active: boolean; primary: boolean }[];
-      const primary = locations.find((l) => l.primary) || locations.find((l) => l.active) || locations[0];
-      if (primary) {
-        const locationId = String(primary.id);
-        locationCache.set(creds.storeUrl, locationId);
-        return locationId;
-      }
-    }
-  } catch {
-    // Fall through
+  if (!res.ok) {
+    throw new Error(`Shopify locations API hatası: ${res.status}`);
   }
 
-  throw new Error("Cannot determine location. Please set shopify_location_id in settings.");
+  const data = await res.json();
+  const locations = data.locations as { id: number; active: boolean; primary: boolean }[];
+  const primary = locations.find((l) => l.primary) || locations.find((l) => l.active) || locations[0];
+  if (primary) {
+    const locationId = String(primary.id);
+    locationCache.set(creds.storeUrl, locationId);
+    return locationId;
+  }
+
+  throw new Error("Shopify mağazasında aktif lokasyon bulunamadı.");
 }
 
 interface ShopifyProduct {
