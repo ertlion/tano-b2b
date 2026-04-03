@@ -101,13 +101,9 @@ export class TSoftAdapter implements MarketplaceAdapter {
   async validateCredentials(
     credentials: MarketplaceCredentials
   ): Promise<boolean> {
-    try {
-      const creds = toTSoftCreds(credentials);
-      await this.getToken(creds);
-      return true;
-    } catch {
-      return false;
-    }
+    const creds = toTSoftCreds(credentials);
+    await this.getToken(creds);
+    return true;
   }
 
   async pushProduct(

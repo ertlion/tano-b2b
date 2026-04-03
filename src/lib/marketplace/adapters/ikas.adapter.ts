@@ -95,12 +95,8 @@ export class IkasAdapter implements MarketplaceAdapter {
 
   async validateCredentials(credentials: MarketplaceCredentials): Promise<boolean> {
     const creds = credentials as IkasCredentials;
-    try {
-      await this.getToken(creds);
-      return true;
-    } catch {
-      return false;
-    }
+    await this.getToken(creds);
+    return true;
   }
 
   async pushProduct(credentials: MarketplaceCredentials, product: MarketplaceProduct): Promise<PushResult> {

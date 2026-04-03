@@ -68,13 +68,9 @@ export class IdeaSoftAdapter implements MarketplaceAdapter {
   async validateCredentials(
     credentials: MarketplaceCredentials
   ): Promise<boolean> {
-    try {
-      const creds = toIdeaSoftCreds(credentials);
-      await this.request(creds, "GET", "/api/products?limit=1");
-      return true;
-    } catch {
-      return false;
-    }
+    const creds = toIdeaSoftCreds(credentials);
+    await this.request(creds, "GET", "/api/products?limit=1");
+    return true;
   }
 
   async pushProduct(

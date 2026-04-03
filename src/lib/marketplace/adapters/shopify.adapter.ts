@@ -71,13 +71,9 @@ export class ShopifyAdapter implements MarketplaceAdapter {
   async validateCredentials(
     credentials: MarketplaceCredentials
   ): Promise<boolean> {
-    try {
-      const shopifyCreds = toShopifyCreds(credentials);
-      await getPrimaryLocationId(shopifyCreds);
-      return true;
-    } catch {
-      return false;
-    }
+    const shopifyCreds = toShopifyCreds(credentials);
+    await getPrimaryLocationId(shopifyCreds);
+    return true;
   }
 
   async pushProduct(
