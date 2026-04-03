@@ -138,6 +138,6 @@ export async function GET(request: NextRequest) {
       );
     }
     console.error("[PANEL/PRODUCTS] GET error:", error);
-    return NextResponse.json({ error: "Sunucu hatasi" }, { status: 500 });
+    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }
 }

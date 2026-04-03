@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       );
     }
     console.error("[PANEL/SETTINGS] GET error:", error);
-    return NextResponse.json({ error: "Sunucu hatasi" }, { status: 500 });
+    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }
 }
 
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `${updates.length} ayar guncellendi`,
+      message: `${updates.length} ayar güncellendi`,
       updatedKeys: updates.map((u) => u.key),
     });
   } catch (error) {
@@ -116,6 +116,6 @@ export async function POST(request: NextRequest) {
       );
     }
     console.error("[PANEL/SETTINGS] POST error:", error);
-    return NextResponse.json({ error: "Sunucu hatasi" }, { status: 500 });
+    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }
 }

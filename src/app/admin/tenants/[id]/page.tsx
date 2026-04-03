@@ -42,7 +42,7 @@ export default function TenantDetailPage() {
       const json = await res.json();
       setTenant(json.data);
     } catch {
-      setError("Musteri bilgileri yuklenemedi");
+      setError("Müşteri bilgileri yüklenemedi");
     } finally {
       setLoading(false);
     }
@@ -95,7 +95,7 @@ export default function TenantDetailPage() {
     return (
       <div className="space-y-6">
         <Link href="/admin/tenants" className="text-blue-600 hover:text-blue-700 text-sm">
-          &larr; Musterilere Don
+          &larr; Müşterilere Don
         </Link>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">{error}</div>
       </div>
@@ -136,11 +136,11 @@ export default function TenantDetailPage() {
                 <p className="text-sm text-gray-900">{MARKETPLACE_LABEL[tenant.marketplace] || tenant.marketplace}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Kayit Tarihi</p>
+                <p className="text-xs text-gray-500">Kayıt Tarihi</p>
                 <p className="text-sm text-gray-900">{new Date(tenant.createdAt).toLocaleDateString("tr-TR")}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Aktif Urun</p>
+                <p className="text-xs text-gray-500">Aktif Ürün</p>
                 <p className="text-sm text-gray-900">{tenant.tenantProductsCount}</p>
               </div>
               <div>
@@ -186,18 +186,18 @@ export default function TenantDetailPage() {
       {/* Orders Summary */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Siparisler</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Siparişler</h2>
         </div>
 
         <div className="px-6 py-8 text-center">
           <p className="text-3xl font-bold text-gray-900">{tenant.ordersCount}</p>
-          <p className="text-sm text-gray-500 mt-1">Toplam Siparis</p>
+          <p className="text-sm text-gray-500 mt-1">Toplam Sipariş</p>
           {tenant.ordersCount > 0 && (
             <Link
               href={`/admin/orders?tenantId=${tenant.id}`}
               className="inline-block mt-3 text-sm text-blue-600 hover:text-blue-700"
             >
-              Siparisleri Gor
+              Siparişleri Gor
             </Link>
           )}
         </div>

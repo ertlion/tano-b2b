@@ -54,7 +54,7 @@ export default function ProductDetailPage() {
     async function load() {
       try {
         const res = await fetch(`/api/admin/products/${productId}`);
-        if (!res.ok) throw new Error("Urun bulunamadi");
+        if (!res.ok) throw new Error("Ürün bulunamadı");
         const json = await res.json();
         const data = json.data;
         setProduct(data);
@@ -66,7 +66,7 @@ export default function ProductDetailPage() {
           status: data.status || "active",
         });
       } catch {
-        setError("Urun yuklenemedi");
+        setError("Ürün yüklenemedi");
       } finally {
         setLoading(false);
       }
@@ -88,13 +88,13 @@ export default function ProductDetailPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Kayit basarisiz");
+        throw new Error(data.error || "Kayıt başarısız");
       }
 
-      setSuccess("Urun basariyla guncellendi");
+      setSuccess("Ürün başarıyla güncellendi");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Bir hata olustu");
+      setError(err instanceof Error ? err.message : "Bir hata oluştu");
     } finally {
       setSaving(false);
     }
@@ -117,7 +117,7 @@ export default function ProductDetailPage() {
     return (
       <div className="space-y-6">
         <Link href="/admin/products" className="text-blue-600 hover:text-blue-700 text-sm">
-          &larr; Urunlere Don
+          &larr; Ürünlere Don
         </Link>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">{error}</div>
       </div>
@@ -149,11 +149,11 @@ export default function ProductDetailPage() {
 
       {/* Product Info Form */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Urun Bilgileri</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Ürün Bilgileri</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Urun Adi</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ürün Adı</label>
             <input
               type="text"
               value={form.name}
@@ -232,7 +232,7 @@ export default function ProductDetailPage() {
 
         {product.masterVariants.length === 0 ? (
           <div className="px-6 py-12 text-center text-gray-500 text-sm">
-            Bu urune ait varyant bulunmuyor.
+            Bu ürüne ait varyant bulunmuyor.
           </div>
         ) : (
           <div className="overflow-x-auto">

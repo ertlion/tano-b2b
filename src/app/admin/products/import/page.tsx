@@ -82,14 +82,14 @@ export default function ImportPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Import basarisiz oldu");
+        setError(data.error || "Import başarısız oldu");
         return;
       }
 
       setResult(data);
       setFile(null);
     } catch {
-      setError("Bir hata olustu. Lutfen tekrar deneyin.");
+      setError("Bir hata oluştu. Lütfen tekrar deneyin.");
     } finally {
       setUploading(false);
     }
@@ -173,10 +173,10 @@ export default function ImportPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                Yukleniyor...
+                Yükleniyor...
               </>
             ) : (
-              "Yukle ve Islem Yap"
+              "Yükle ve İşlem Yap"
             )}
           </button>
         </div>
@@ -189,11 +189,11 @@ export default function ImportPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Import Sonucu</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-green-50 rounded-lg p-4">
-                <p className="text-sm text-green-600">Yeni Urun</p>
+                <p className="text-sm text-green-600">Yeni Ürün</p>
                 <p className="text-2xl font-bold text-green-700">{result.newProducts}</p>
               </div>
               <div className="bg-blue-50 rounded-lg p-4">
-                <p className="text-sm text-blue-600">Guncellenen Urun</p>
+                <p className="text-sm text-blue-600">Güncellenen Ürün</p>
                 <p className="text-2xl font-bold text-blue-700">{result.updatedProducts}</p>
               </div>
               <div className="bg-purple-50 rounded-lg p-4">
@@ -217,13 +217,13 @@ export default function ImportPage() {
           {result.stockChanges && result.stockChanges.length > 0 && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Stok Degisiklikleri</h2>
+                <h2 className="text-lg font-semibold text-gray-900">Stok Değişiklikleri</h2>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100">
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Urun</th>
+                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Ürün</th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">SKU</th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Beden</th>
                       <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Eski Stok</th>

@@ -52,7 +52,7 @@ export default function NewProductsPage() {
     setError("");
     try {
       const res = await fetch("/api/panel/products?tab=new");
-      if (!res.ok) throw new Error("Urunler yuklenemedi");
+      if (!res.ok) throw new Error("Ürünler yüklenemedi");
       const json = await res.json();
       const rawProducts = json.data || [];
       const mapped = rawProducts.map((p: Record<string, unknown>) => {
@@ -79,7 +79,7 @@ export default function NewProductsPage() {
         total: json.meta?.total ?? mapped.length,
       });
     } catch {
-      setError("Yeni urunler yuklenemedi");
+      setError("Yeni ürünler yüklenemedi");
     } finally {
       setLoading(false);
     }
@@ -139,10 +139,10 @@ export default function NewProductsPage() {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Aktarim basarisiz");
+        throw new Error(err.error || "Aktarım başarısız");
       }
 
-      setPushSuccess("Urun basariyla aktarildi");
+      setPushSuccess("Ürün başarıyla aktarıldı");
       setPushModalProduct(null);
       setSelectedCategory("");
 
@@ -158,7 +158,7 @@ export default function NewProductsPage() {
 
       setTimeout(() => setPushSuccess(null), 3000);
     } catch (err) {
-      setPushError(err instanceof Error ? err.message : "Bir hata olustu");
+      setPushError(err instanceof Error ? err.message : "Bir hata oluştu");
     } finally {
       setPushing(false);
     }
@@ -182,10 +182,10 @@ export default function NewProductsPage() {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Toplu aktarim basarisiz");
+        throw new Error(err.error || "Toplu aktarım başarısız");
       }
 
-      setPushSuccess(`${selectedIds.size} urun basariyla aktarildi`);
+      setPushSuccess(`${selectedIds.size} ürün başarıyla aktarildi`);
       setShowBulkModal(false);
       setBulkCategory("");
 
@@ -202,7 +202,7 @@ export default function NewProductsPage() {
 
       setTimeout(() => setPushSuccess(null), 3000);
     } catch (err) {
-      setPushError(err instanceof Error ? err.message : "Bir hata olustu");
+      setPushError(err instanceof Error ? err.message : "Bir hata oluştu");
     } finally {
       setBulkPushing(false);
     }
@@ -216,7 +216,7 @@ export default function NewProductsPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Yeni Urunler</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Yeni Ürünler</h1>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 animate-pulse">
@@ -239,7 +239,7 @@ export default function NewProductsPage() {
   if (error) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Yeni Urunler</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Yeni Ürünler</h1>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">{error}</div>
       </div>
     );
@@ -252,9 +252,9 @@ export default function NewProductsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Yeni Urunler</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Yeni Ürünler</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Tano katalogundan sitenize aktarilmamis urunler
+            Tano katalogundan sitenize aktarilmamis ürünler
           </p>
         </div>
         {products.length > 0 && selectedIds.size > 0 && (
@@ -273,7 +273,7 @@ export default function NewProductsPage() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <p className="text-sm text-amber-800">
-          Urun gorselleri sitenize aktarilmaz. Gorselleri kendi panelinizden eklemeniz gerekir.
+          Ürün görselleri sitenize aktarilmaz. Gorselleri kendi panelinizden eklemeniz gerekir.
         </p>
       </div>
 
@@ -300,7 +300,7 @@ export default function NewProductsPage() {
               className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
             />
             <span className="text-sm text-gray-600">
-              Tumunu Sec ({products.length} urun)
+              Tümünü Seç ({products.length} ürün)
             </span>
           </label>
         </div>
@@ -312,8 +312,8 @@ export default function NewProductsPage() {
           <svg className="w-16 h-16 text-gray-200 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M5 13l4 4L19 7" />
           </svg>
-          <p className="text-gray-500 text-sm mb-1">Tum urunler aktarildi!</p>
-          <p className="text-gray-400 text-xs">Yeni urunler eklendiginde burada gorunecektir.</p>
+          <p className="text-gray-500 text-sm mb-1">Tum ürünler aktarildi!</p>
+          <p className="text-gray-400 text-xs">Yeni ürünler eklendiginde burada gorunecektir.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -423,7 +423,7 @@ export default function NewProductsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => setPushModalProduct(null)} />
           <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6 z-10">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Urunu Aktar</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Ürünü Aktar</h3>
             <p className="text-sm text-gray-500 mb-4">{pushModalProduct.name}</p>
 
             <div className="space-y-4">
@@ -432,7 +432,7 @@ export default function NewProductsPage() {
                   Kategori Eslestirme
                 </label>
                 <p className="text-xs text-gray-400 mb-2">
-                  Urunun sitenizde hangi kategoride gorunecegini secin.
+                  Ürünün sitenizde hangi kategoride gorunecegini secin.
                 </p>
                 {categories.length > 0 ? (
                   <select
@@ -470,14 +470,14 @@ export default function NewProductsPage() {
                 onClick={() => setPushModalProduct(null)}
                 className="px-4 py-2.5 border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium rounded-lg text-sm transition-colors"
               >
-                Iptal
+                İptal
               </button>
               <button
                 onClick={() => handlePush(pushModalProduct.id, selectedCategory)}
                 disabled={pushing}
                 className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg text-sm transition-colors"
               >
-                {pushing ? "Aktariliyor..." : "Aktar"}
+                {pushing ? "Aktarılıyor..." : "Aktar"}
               </button>
             </div>
           </div>
@@ -493,7 +493,7 @@ export default function NewProductsPage() {
               Toplu Aktarim
             </h3>
             <p className="text-sm text-gray-500 mb-4">
-              {selectedIds.size} urun secildi. Tumu ayni kategoriye aktarilacak.
+              {selectedIds.size} ürün secildi. Tumu ayni kategoriye aktarilacak.
             </p>
 
             <div className="space-y-4">
@@ -537,14 +537,14 @@ export default function NewProductsPage() {
                 onClick={() => setShowBulkModal(false)}
                 className="px-4 py-2.5 border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium rounded-lg text-sm transition-colors"
               >
-                Iptal
+                İptal
               </button>
               <button
                 onClick={handleBulkPush}
                 disabled={bulkPushing}
                 className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg text-sm transition-colors"
               >
-                {bulkPushing ? "Aktariliyor..." : `${selectedIds.size} Urun Aktar`}
+                {bulkPushing ? "Aktarılıyor..." : `${selectedIds.size} Ürün Aktar`}
               </button>
             </div>
           </div>

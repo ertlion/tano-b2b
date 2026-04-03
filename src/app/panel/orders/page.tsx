@@ -23,11 +23,11 @@ interface OrdersResponse {
 const STATUS_OPTIONS = [
   { value: "", label: "Tum Durumlar" },
   { value: "new", label: "Yeni" },
-  { value: "processing", label: "Isleniyor" },
-  { value: "preparing", label: "Hazirlaniyor" },
+  { value: "processing", label: "İşleniyor" },
+  { value: "preparing", label: "Hazırlanıyor" },
   { value: "shipped", label: "Kargoda" },
   { value: "delivered", label: "Teslim Edildi" },
-  { value: "cancelled", label: "Iptal" },
+  { value: "cancelled", label: "İptal" },
 ];
 
 const STATUS_BADGE: Record<string, string> = {
@@ -41,11 +41,11 @@ const STATUS_BADGE: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   new: "Yeni",
-  processing: "Isleniyor",
-  preparing: "Hazirlaniyor",
+  processing: "İşleniyor",
+  preparing: "Hazırlanıyor",
   shipped: "Kargoda",
   delivered: "Teslim Edildi",
-  cancelled: "Iptal",
+  cancelled: "İptal",
 };
 
 export default function PanelOrdersPage() {
@@ -90,7 +90,7 @@ export default function PanelOrdersPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Siparislerim</h1>
+      <h1 className="text-2xl font-bold text-gray-900">Siparişlerim</h1>
 
       {/* Filter */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
@@ -118,7 +118,7 @@ export default function PanelOrdersPage() {
             <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
-            <p className="text-gray-500 text-sm">Siparis bulunamadi.</p>
+            <p className="text-gray-500 text-sm">Sipariş bulunamadı.</p>
           </div>
         ) : (
           <>
@@ -126,8 +126,8 @@ export default function PanelOrdersPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100">
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Siparis No</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Musteri</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Sipariş No</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Müşteri</th>
                     <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Tutar</th>
                     <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Durum</th>
                     <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Kargo</th>

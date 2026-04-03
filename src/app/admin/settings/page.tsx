@@ -64,13 +64,13 @@ export default function SettingsPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Kayit basarisiz");
+        throw new Error(data.error || "Kayıt başarısız");
       }
 
-      setSuccess("Ayarlar basariyla kaydedildi");
+      setSuccess("Ayarlar başarıyla kaydedildi");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Bir hata olustu");
+      setError(err instanceof Error ? err.message : "Bir hata oluştu");
     } finally {
       setSaving(false);
     }
@@ -94,10 +94,10 @@ export default function SettingsPage() {
         throw new Error(data.error || "Test e-posta gonderilemedi");
       }
 
-      setSuccess("Test e-posta basariyla gonderildi");
+      setSuccess("Test e-posta başarıyla gönderildi");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Bir hata olustu");
+      setError(err instanceof Error ? err.message : "Bir hata oluştu");
     } finally {
       setTesting(false);
     }
@@ -165,7 +165,7 @@ export default function SettingsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Sifre</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Şifre</label>
             <input
               type="password"
               value={form.password}

@@ -15,7 +15,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const productId = parseInt(id);
 
     if (isNaN(productId)) {
-      return NextResponse.json({ error: "Gecersiz urun ID" }, { status: 400 });
+      return NextResponse.json({ error: "Geçersiz ürün ID" }, { status: 400 });
     }
 
     const product = await db.query.masterProducts.findFirst({
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!product) {
-      return NextResponse.json({ error: "Urun bulunamadi" }, { status: 404 });
+      return NextResponse.json({ error: "Ürün bulunamadı" }, { status: 404 });
     }
 
     return NextResponse.json({ success: true, data: product });
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
     console.error("[ADMIN/PRODUCTS/:id] GET error:", error);
-    return NextResponse.json({ error: "Sunucu hatasi" }, { status: 500 });
+    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }
 }
 
@@ -57,7 +57,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const productId = parseInt(id);
 
     if (isNaN(productId)) {
-      return NextResponse.json({ error: "Gecersiz urun ID" }, { status: 400 });
+      return NextResponse.json({ error: "Geçersiz ürün ID" }, { status: 400 });
     }
 
     const body = await request.json();
@@ -67,7 +67,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!existing) {
-      return NextResponse.json({ error: "Urun bulunamadi" }, { status: 404 });
+      return NextResponse.json({ error: "Ürün bulunamadı" }, { status: 404 });
     }
 
     // Only allow updating specific fields
@@ -105,7 +105,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
     console.error("[ADMIN/PRODUCTS/:id] PUT error:", error);
-    return NextResponse.json({ error: "Sunucu hatasi" }, { status: 500 });
+    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }
 }
 
@@ -116,7 +116,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const productId = parseInt(id);
 
     if (isNaN(productId)) {
-      return NextResponse.json({ error: "Gecersiz urun ID" }, { status: 400 });
+      return NextResponse.json({ error: "Geçersiz ürün ID" }, { status: 400 });
     }
 
     const existing = await db.query.masterProducts.findFirst({
@@ -124,7 +124,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!existing) {
-      return NextResponse.json({ error: "Urun bulunamadi" }, { status: 404 });
+      return NextResponse.json({ error: "Ürün bulunamadı" }, { status: 404 });
     }
 
     const [updated] = await db
@@ -142,6 +142,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
     console.error("[ADMIN/PRODUCTS/:id] DELETE error:", error);
-    return NextResponse.json({ error: "Sunucu hatasi" }, { status: 500 });
+    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }
 }

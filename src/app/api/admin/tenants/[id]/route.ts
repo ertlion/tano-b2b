@@ -15,7 +15,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const tenantId = parseInt(id);
 
     if (isNaN(tenantId)) {
-      return NextResponse.json({ error: "Gecersiz tenant ID" }, { status: 400 });
+      return NextResponse.json({ error: "Geçersiz tenant ID" }, { status: 400 });
     }
 
     const tenant = await db.query.tenants.findFirst({
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
     console.error("[ADMIN/TENANTS/:id] GET error:", error);
-    return NextResponse.json({ error: "Sunucu hatasi" }, { status: 500 });
+    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }
 }
 
@@ -78,7 +78,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const tenantId = parseInt(id);
 
     if (isNaN(tenantId)) {
-      return NextResponse.json({ error: "Gecersiz tenant ID" }, { status: 400 });
+      return NextResponse.json({ error: "Geçersiz tenant ID" }, { status: 400 });
     }
 
     const existing = await db.query.tenants.findFirst({
@@ -134,7 +134,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
     console.error("[ADMIN/TENANTS/:id] PUT error:", error);
-    return NextResponse.json({ error: "Sunucu hatasi" }, { status: 500 });
+    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }
 }
 
@@ -145,7 +145,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const tenantId = parseInt(id);
 
     if (isNaN(tenantId)) {
-      return NextResponse.json({ error: "Gecersiz tenant ID" }, { status: 400 });
+      return NextResponse.json({ error: "Geçersiz tenant ID" }, { status: 400 });
     }
 
     const existing = await db.query.tenants.findFirst({
@@ -158,7 +158,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     if (existing.isAdmin) {
       return NextResponse.json(
-        { error: "Admin hesabi devre disi birakilamaz" },
+        { error: "Admin hesabı devre dışı bırakılamaz" },
         { status: 403 }
       );
     }
@@ -182,6 +182,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
     console.error("[ADMIN/TENANTS/:id] DELETE error:", error);
-    return NextResponse.json({ error: "Sunucu hatasi" }, { status: 500 });
+    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }
 }

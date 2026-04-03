@@ -31,11 +31,11 @@ const STATUS_BADGE: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   new: "Yeni",
-  processing: "Isleniyor",
-  preparing: "Hazirlaniyor",
+  processing: "İşleniyor",
+  preparing: "Hazırlanıyor",
   shipped: "Kargoda",
   delivered: "Teslim Edildi",
-  cancelled: "Iptal",
+  cancelled: "İptal",
 };
 
 function StatCard({
@@ -82,7 +82,7 @@ export default function PanelDashboardPage() {
     async function load() {
       try {
         const res = await fetch("/api/panel/dashboard");
-        if (!res.ok) throw new Error("Veri alinamadi");
+        if (!res.ok) throw new Error("Veri alınamadı");
         const json = await res.json();
         const d = json.data;
         setData({
@@ -95,7 +95,7 @@ export default function PanelDashboardPage() {
           recentOrders: d.recentOrders || [],
         });
       } catch {
-        setError("Dashboard verileri yuklenemedi");
+        setError("Dashboard verileri yüklenemedi");
       } finally {
         setLoading(false);
       }
@@ -146,10 +146,10 @@ export default function PanelDashboardPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-blue-900">
-                {stats.pendingProducts} yeni urun eklendi
+                {stats.pendingProducts} yeni ürün eklendi
               </p>
               <p className="text-xs text-blue-600">
-                Katalogdaki yeni urunleri sitenize aktarabilirsiniz.
+                Katalogdaki yeni ürünleri sitenize aktarabilirsiniz.
               </p>
             </div>
           </div>
@@ -157,7 +157,7 @@ export default function PanelDashboardPage() {
             href="/panel/products/new"
             className="flex-shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
           >
-            Yeni Urunleri Incele
+            Yeni Ürünleri Incele
           </Link>
         </div>
       )}
@@ -165,7 +165,7 @@ export default function PanelDashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Aktif Urunler"
+          label="Aktif Ürünler"
           value={stats.activeProducts}
           color="text-gray-900"
           icon={
@@ -175,7 +175,7 @@ export default function PanelDashboardPage() {
           }
         />
         <StatCard
-          label="Yeni Urunler (Bekleyen)"
+          label="Yeni Ürünler (Bekleyen)"
           value={stats.pendingProducts}
           color="text-blue-600"
           icon={
@@ -185,7 +185,7 @@ export default function PanelDashboardPage() {
           }
         />
         <StatCard
-          label="Toplam Siparis"
+          label="Toplam Sipariş"
           value={stats.totalOrders}
           color="text-gray-900"
           icon={
@@ -195,7 +195,7 @@ export default function PanelDashboardPage() {
           }
         />
         <StatCard
-          label="Bekleyen Siparis"
+          label="Bekleyen Sipariş"
           value={stats.pendingOrders}
           color="text-yellow-600"
           icon={
@@ -209,9 +209,9 @@ export default function PanelDashboardPage() {
       {/* Recent Orders */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Son Siparisler</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Son Siparişler</h2>
           <Link href="/panel/orders" className="text-sm text-blue-600 hover:text-blue-700">
-            Tumunu Gor
+            Tümünü Gör
           </Link>
         </div>
 
@@ -220,15 +220,15 @@ export default function PanelDashboardPage() {
             <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
-            <p className="text-sm text-gray-500">Henuz siparis bulunmuyor.</p>
+            <p className="text-sm text-gray-500">Henüz siparis bulunmuyor.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Siparis No</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Musteri</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Sipariş No</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Müşteri</th>
                   <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Tutar</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Durum</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Tarih</th>

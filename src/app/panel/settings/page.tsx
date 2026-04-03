@@ -26,7 +26,7 @@ const MARKETPLACE_FIELDS: Record<Marketplace, Array<{ key: string; label: string
   tsoft: [
     { key: "apiUrl", label: "API URL", type: "text", placeholder: "https://api.tsoft.com.tr/..." },
     { key: "username", label: "Kullanici Adi", type: "text", placeholder: "TSoft kullanici adi" },
-    { key: "password", label: "Sifre", type: "password", placeholder: "TSoft sifresi" },
+    { key: "password", label: "Şifre", type: "password", placeholder: "TSoft şifresi" },
   ],
   ideasoft: [
     { key: "storeUrl", label: "Store URL", type: "text", placeholder: "my-store.myideasoft.com" },
@@ -85,13 +85,13 @@ export default function PanelSettingsPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Kayit basarisiz");
+        throw new Error(data.error || "Kayıt başarısız");
       }
 
-      setSuccess("Ayarlar basariyla kaydedildi");
+      setSuccess("Ayarlar başarıyla kaydedildi");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Bir hata olustu");
+      setError(err instanceof Error ? err.message : "Bir hata oluştu");
     } finally {
       setSaving(false);
     }
@@ -113,11 +113,11 @@ export default function PanelSettingsPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setTestResult({ ok: false, message: data.error || "Baglanti testi basarisiz" });
+        setTestResult({ ok: false, message: data.error || "Bağlantı testi başarısız" });
         return;
       }
 
-      setTestResult({ ok: true, message: data.message || "Baglanti basarili" });
+      setTestResult({ ok: true, message: data.message || "Bağlantı başarılı" });
     } catch (err) {
       setTestResult({
         ok: false,
@@ -158,7 +158,7 @@ export default function PanelSettingsPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-1">Pazaryeri Entegrasyonu</h2>
         <p className="text-sm text-gray-500 mb-6">
-          Urunlerin ve siparislerin senkronize edildigi pazaryeri bilgileri.
+          Ürünlerin ve siparişlerin senkronize edildigi pazaryeri bilgileri.
         </p>
 
         {/* Marketplace display */}
@@ -251,9 +251,9 @@ export default function PanelSettingsPage() {
             <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
             </svg>
-            <p className="text-sm text-gray-500 mb-1">Pazaryeri henuz belirlenmemis.</p>
+            <p className="text-sm text-gray-500 mb-1">Pazaryeri henüz belirlenmemiş.</p>
             <p className="text-xs text-gray-400">
-              Lutfen yonetici ile iletisime gecin.
+              Lütfen yönetici ile iletişime geçin.
             </p>
           </div>
         )}

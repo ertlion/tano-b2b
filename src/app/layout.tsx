@@ -15,7 +15,7 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "Tano Atelier B2B",
-  description: "Tano Atelier B2B Toptan Siparis Platformu",
+  description: "Tano Atelier B2B Toptan Sipariş Platformu",
 };
 
 export default function RootLayout({

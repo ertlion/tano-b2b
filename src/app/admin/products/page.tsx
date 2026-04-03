@@ -79,7 +79,7 @@ export default function ProductsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">Urunler</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Ürünler</h1>
         <Link
           href="/admin/products/import"
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
@@ -96,7 +96,7 @@ export default function ProductsPage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <input
             type="text"
-            placeholder="Urun ara (ad, SKU, barkod)..."
+            placeholder="Ürün ara (ad, SKU, barkod)..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -137,8 +137,8 @@ export default function ProductsPage() {
             <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
-            <p className="text-gray-500 text-sm">Urun bulunamadi.</p>
-            <p className="text-gray-400 text-xs mt-1">Excel dosyasi yukleyerek urun ekleyebilirsiniz.</p>
+            <p className="text-gray-500 text-sm">Ürün bulunamadı.</p>
+            <p className="text-gray-400 text-xs mt-1">Excel dosyasi yukleyerek ürün ekleyebilirsiniz.</p>
           </div>
         ) : (
           <>
@@ -146,7 +146,7 @@ export default function ProductsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100">
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Urun Adi</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Ürün Adı</th>
                     <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">SKU</th>
                     <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Kategori</th>
                     <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Varyant</th>
@@ -181,7 +181,7 @@ export default function ProductsPage() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
                 <p className="text-sm text-gray-500">
-                  Toplam {data.total} urun
+                  Toplam {data.total} ürün
                 </p>
                 <div className="flex items-center gap-2">
                   <button

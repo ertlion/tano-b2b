@@ -34,11 +34,11 @@ const STATUS_BADGE: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   new: "Yeni",
-  processing: "Isleniyor",
-  preparing: "Hazirlaniyor",
+  processing: "İşleniyor",
+  preparing: "Hazırlanıyor",
   shipped: "Kargoda",
   delivered: "Teslim Edildi",
-  cancelled: "Iptal",
+  cancelled: "İptal",
 };
 
 function StatCard({
@@ -67,7 +67,7 @@ export default function DashboardPage() {
     async function load() {
       try {
         const res = await fetch("/api/admin/dashboard");
-        if (!res.ok) throw new Error("Veri alinamadi");
+        if (!res.ok) throw new Error("Veri alınamadı");
         const json = await res.json();
         const d = json.data || json;
         setData({
@@ -82,7 +82,7 @@ export default function DashboardPage() {
           recentOrders: d.recentOrders ?? [],
         });
       } catch {
-        setError("Dashboard verileri yuklenemedi");
+        setError("Dashboard verileri yüklenemedi");
       } finally {
         setLoading(false);
       }
@@ -124,34 +124,34 @@ export default function DashboardPage() {
       <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard label="Toplam Urun" value={stats.totalProducts} color="text-gray-900" />
+        <StatCard label="Toplam Ürün" value={stats.totalProducts} color="text-gray-900" />
         <StatCard label="Toplam Stok" value={stats.totalStock} color="text-gray-900" />
-        <StatCard label="Aktif Musteri" value={stats.activeCustomers} color="text-green-600" />
+        <StatCard label="Aktif Müşteri" value={stats.activeCustomers} color="text-green-600" />
         <StatCard label="Onay Bekleyen" value={stats.pendingApproval} color="text-yellow-600" />
-        <StatCard label="Toplam Siparis" value={stats.totalOrders} color="text-gray-900" />
-        <StatCard label="Bekleyen Siparis" value={stats.pendingOrders} color="text-blue-600" />
+        <StatCard label="Toplam Sipariş" value={stats.totalOrders} color="text-gray-900" />
+        <StatCard label="Bekleyen Sipariş" value={stats.pendingOrders} color="text-blue-600" />
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Son Siparisler</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Son Siparişler</h2>
           <Link href="/admin/orders" className="text-sm text-blue-600 hover:text-blue-700">
-            Tumunu Gor
+            Tümünü Gör
           </Link>
         </div>
 
         {recentOrders.length === 0 ? (
           <div className="px-6 py-12 text-center text-gray-500 text-sm">
-            Henuz siparis bulunmuyor.
+            Henüz siparis bulunmuyor.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Siparis No</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Magaza</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Musteri</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Sipariş No</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Mağaza</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Müşteri</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Tutar</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Durum</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Tarih</th>

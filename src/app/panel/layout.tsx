@@ -26,9 +26,9 @@ export default async function PanelLayout({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Hesabiniz Henuz Onaylanmadi</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">Hesabınız Henüz Onaylanmadı</h1>
           <p className="text-sm text-gray-500 mb-6">
-            Basvurunuz inceleniyor. Onaylandiginda size e-posta ile bilgi verilecektir.
+            Basvürünuz inceleniyor. Onaylandiginda size e-posta ile bilgi verilecektir.
             Sorulariniz icin destek ekibimize ulasabilirsiniz.
           </p>
           <div className="text-xs text-gray-400">

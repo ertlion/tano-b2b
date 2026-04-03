@@ -15,7 +15,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const tenantId = parseInt(id);
 
     if (isNaN(tenantId)) {
-      return NextResponse.json({ error: "Gecersiz tenant ID" }, { status: 400 });
+      return NextResponse.json({ error: "Geçersiz tenant ID" }, { status: 400 });
     }
 
     const existing = await db.query.tenants.findFirst({
@@ -55,6 +55,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
     console.error("[ADMIN/TENANTS/:id/reject] POST error:", error);
-    return NextResponse.json({ error: "Sunucu hatasi" }, { status: 500 });
+    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }
 }

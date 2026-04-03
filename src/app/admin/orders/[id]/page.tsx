@@ -65,11 +65,11 @@ const STATUS_BADGE: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   new: "Yeni",
-  processing: "Isleniyor",
-  preparing: "Hazirlaniyor",
+  processing: "İşleniyor",
+  preparing: "Hazırlanıyor",
   shipped: "Kargoda",
   delivered: "Teslim Edildi",
-  cancelled: "Iptal",
+  cancelled: "İptal",
 };
 
 export default function OrderDetailPage() {
@@ -99,7 +99,7 @@ export default function OrderDetailPage() {
       setCargoTracking(data.cargoTrackingNumber || "");
       setCargoUrl(data.cargoTrackingUrl || "");
     } catch {
-      setError("Siparis yuklenemedi");
+      setError("Sipariş yüklenemedi");
     } finally {
       setLoading(false);
     }
@@ -132,14 +132,14 @@ export default function OrderDetailPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Guncelleme basarisiz");
+        throw new Error(data.error || "Güncelleme başarısız");
       }
 
-      setSuccess("Siparis durumu guncellendi");
+      setSuccess("Sipariş durumu güncellendi");
       await loadOrder();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Bir hata olustu");
+      setError(err instanceof Error ? err.message : "Bir hata oluştu");
     } finally {
       setUpdating(false);
     }
@@ -162,7 +162,7 @@ export default function OrderDetailPage() {
     return (
       <div className="space-y-6">
         <Link href="/admin/orders" className="text-blue-600 hover:text-blue-700 text-sm">
-          &larr; Siparislere Don
+          &larr; Siparişlere Don
         </Link>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">{error}</div>
       </div>
@@ -183,7 +183,7 @@ export default function OrderDetailPage() {
           </svg>
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Siparis #{order.orderNumber}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Sipariş #{order.orderNumber}</h1>
           <p className="text-sm text-gray-500">{order.tenant?.company}</p>
         </div>
       </div>
@@ -199,10 +199,10 @@ export default function OrderDetailPage() {
         {/* Order Info */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Siparis Bilgileri</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Sipariş Bilgileri</h2>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-gray-500">Musteri</p>
+                <p className="text-xs text-gray-500">Müşteri</p>
                 <p className="text-sm text-gray-900 font-medium">{order.customerName}</p>
               </div>
               <div>
@@ -258,16 +258,16 @@ export default function OrderDetailPage() {
           {/* Items */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Urunler</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Ürünler</h2>
             </div>
             {items.length === 0 ? (
-              <div className="px-6 py-8 text-center text-gray-500 text-sm">Urun bilgisi bulunamadi.</div>
+              <div className="px-6 py-8 text-center text-gray-500 text-sm">Ürün bilgisi bulunamadı.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100">
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Urun</th>
+                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Ürün</th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">SKU</th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Beden</th>
                       <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Adet</th>
@@ -317,7 +317,7 @@ export default function OrderDetailPage() {
         <div className="space-y-6">
           {/* Status Update */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Durum Guncelle</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Durum Güncelle</h2>
             <div className="space-y-3">
               <select
                 value={newStatus}
@@ -368,7 +368,7 @@ export default function OrderDetailPage() {
                 disabled={updating || newStatus === order.status}
                 className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg text-sm transition-colors"
               >
-                {updating ? "Guncelleniyor..." : "Durumu Guncelle"}
+                {updating ? "Güncelleniyor..." : "Durumu Güncelle"}
               </button>
             </div>
           </div>
@@ -378,7 +378,7 @@ export default function OrderDetailPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Durum Gecmisi</h2>
 
             {order.orderStatusHistory.length === 0 ? (
-              <p className="text-sm text-gray-500">Henuz durum degisikligi yok.</p>
+              <p className="text-sm text-gray-500">Henüz durum değişikliği yok.</p>
             ) : (
               <div className="relative">
                 <div className="absolute left-3 top-2 bottom-2 w-px bg-gray-200" />

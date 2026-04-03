@@ -42,13 +42,13 @@ export default function RegisterPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Kayit basarisiz");
+        setError(data.error || "Kayıt başarısız");
         return;
       }
 
       setSuccess(true);
     } catch {
-      setError("Bir hata olustu. Lutfen tekrar deneyin.");
+      setError("Bir hata oluştu. Lütfen tekrar deneyin.");
     } finally {
       setLoading(false);
     }
@@ -60,7 +60,7 @@ export default function RegisterPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Tano Atelier</h1>
-            <p className="text-gray-500 mt-1">B2B Toptan Siparis Platformu</p>
+            <p className="text-gray-500 mt-1">B2B Toptan Sipariş Platformu</p>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
@@ -69,15 +69,15 @@ export default function RegisterPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Kayit Basarili</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Kayıt Başarılı</h2>
             <p className="text-gray-600 text-sm mb-6">
-              Hesabiniz olusturuldu. Admin onayindan sonra giris yapabileceksiniz.
+              Hesabınız oluşturuldu. Admin onayından sonra giriş yapabileceksiniz.
             </p>
             <Link
               href="/login"
               className="inline-block py-2.5 px-6 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition-colors"
             >
-              Giris Sayfasina Don
+              Giriş Sayfasına Don
             </Link>
           </div>
         </div>
@@ -90,11 +90,11 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Tano Atelier</h1>
-          <p className="text-gray-500 mt-1">B2B Toptan Siparis Platformu</p>
+          <p className="text-gray-500 mt-1">B2B Toptan Sipariş Platformu</p>
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Kayit Ol</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Kayıt Ol</h2>
 
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
@@ -133,7 +133,7 @@ export default function RegisterPage() {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Sifre
+                Şifre
               </label>
               <input
                 id="password"
@@ -200,7 +200,7 @@ export default function RegisterPage() {
               disabled={loading}
               className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg text-sm transition-colors"
             >
-              {loading ? "Kayit yapiliyor..." : "Kayit Ol"}
+              {loading ? "Kayıt yapılıyor..." : "Kayıt Ol"}
             </button>
           </form>
         </div>
@@ -208,7 +208,7 @@ export default function RegisterPage() {
         <p className="text-center text-sm text-gray-500 mt-6">
           Zaten hesabiniz var mi?{" "}
           <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
-            Giris Yap
+            Giriş Yap
           </Link>
         </p>
       </div>

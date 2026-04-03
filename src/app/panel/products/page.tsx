@@ -98,7 +98,7 @@ export default function PanelProductsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Urunlerim</h1>
+      <h1 className="text-2xl font-bold text-gray-900">Ürünlerim</h1>
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
@@ -110,7 +110,7 @@ export default function PanelProductsPage() {
               : "text-gray-500 hover:text-gray-700"
           }`}
         >
-          Aktif Urunlerim
+          Aktif Ürünlerim
         </button>
         <button
           onClick={() => setTab("all")}
@@ -120,7 +120,7 @@ export default function PanelProductsPage() {
               : "text-gray-500 hover:text-gray-700"
           }`}
         >
-          Tum Urunlerim
+          Tum Ürünlerim
         </button>
       </div>
 
@@ -137,9 +137,9 @@ export default function PanelProductsPage() {
             <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
-            <p className="text-sm text-gray-500 mb-1">Henuz urun bulunmuyor.</p>
+            <p className="text-sm text-gray-500 mb-1">Henüz ürün bulunmuyor.</p>
             <p className="text-xs text-gray-400">
-              Yeni urunler sayfasindan urunleri sitenize aktarabilirsiniz.
+              Yeni ürünler sayfasindan ürünleri sitenize aktarabilirsiniz.
             </p>
           </div>
         ) : (
@@ -147,7 +147,7 @@ export default function PanelProductsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Urun Adi</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Ürün Adı</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">SKU</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Bedenler</th>
                   <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Stok</th>

@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     if (!result.success) {
       return NextResponse.json(
-        { error: result.error || "Urun aktarilamadi" },
+        { error: result.error || "Ürün aktarılamadı" },
         { status: 400 }
       );
     }
@@ -59,6 +59,6 @@ export async function POST(request: NextRequest) {
       );
     }
     console.error("[PANEL/PRODUCTS/push] POST error:", error);
-    return NextResponse.json({ error: "Sunucu hatasi" }, { status: 500 });
+    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }
 }

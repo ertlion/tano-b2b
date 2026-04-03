@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       `,
     });
 
-    return NextResponse.json({ success: true, message: "Test emaili gonderildi" });
+    return NextResponse.json({ success: true, message: "Test emaili gönderildi" });
   } catch (error) {
     if (error instanceof Response) {
       return NextResponse.json(

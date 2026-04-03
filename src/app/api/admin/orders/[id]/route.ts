@@ -31,7 +31,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const orderId = parseInt(id);
 
     if (isNaN(orderId)) {
-      return NextResponse.json({ error: "Gecersiz siparis ID" }, { status: 400 });
+      return NextResponse.json({ error: "Geçersiz sipariş ID" }, { status: 400 });
     }
 
     const order = await db.query.orders.findFirst({
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!order) {
-      return NextResponse.json({ error: "Siparis bulunamadi" }, { status: 404 });
+      return NextResponse.json({ error: "Sipariş bulunamadı" }, { status: 404 });
     }
 
     return NextResponse.json({ success: true, data: order });
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
     console.error("[ADMIN/ORDERS/:id] GET error:", error);
-    return NextResponse.json({ error: "Sunucu hatasi" }, { status: 500 });
+    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }
 }
 
@@ -77,7 +77,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const orderId = parseInt(id);
 
     if (isNaN(orderId)) {
-      return NextResponse.json({ error: "Gecersiz siparis ID" }, { status: 400 });
+      return NextResponse.json({ error: "Geçersiz sipariş ID" }, { status: 400 });
     }
 
     const body = await request.json();
@@ -110,7 +110,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!order) {
-      return NextResponse.json({ error: "Siparis bulunamadi" }, { status: 404 });
+      return NextResponse.json({ error: "Sipariş bulunamadı" }, { status: 404 });
     }
 
     // Validate status transition
@@ -118,7 +118,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (!allowedNext || !allowedNext.includes(newStatus)) {
       return NextResponse.json(
         {
-          error: `Gecersiz durum gecisi: ${order.status} -> ${newStatus}. Izin verilen: ${allowedNext?.join(", ") || "yok"}`,
+          error: `Geçersiz durum geçişi: ${order.status} -> ${newStatus}. Izin verilen: ${allowedNext?.join(", ") || "yok"}`,
         },
         { status: 400 }
       );
@@ -191,7 +191,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
     console.error("[ADMIN/ORDERS/:id] PUT error:", error);
-    return NextResponse.json({ error: "Sunucu hatasi" }, { status: 500 });
+    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }
 }
 
