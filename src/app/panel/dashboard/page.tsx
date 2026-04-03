@@ -5,8 +5,8 @@ import Link from "next/link";
 
 interface DashboardData {
   stats: {
-    activeProducts: number;
-    pendingProducts: number;
+    catalogProducts: number;
+    discountRate: number;
     totalOrders: number;
     pendingOrders: number;
   };
@@ -41,11 +41,13 @@ const STATUS_LABEL: Record<string, string> = {
 function StatCard({
   label,
   value,
+  suffix,
   color,
   icon,
 }: {
   label: string;
-  value: number;
+  value: number | string;
+  suffix?: string;
   color: string;
   icon: React.ReactNode;
 }) {
@@ -55,7 +57,10 @@ function StatCard({
         <p className="text-sm text-gray-500">{label}</p>
         <span className="text-gray-300">{icon}</span>
       </div>
-      <p className={`text-3xl font-bold ${color}`}>{value.toLocaleString("tr-TR")}</p>
+      <p className={`text-3xl font-bold ${color}`}>
+        {typeof value === "number" ? value.toLocaleString("tr-TR") : value}
+        {suffix && <span className="text-lg font-medium ml-1">{suffix}</span>}
+      </p>
     </div>
   );
 }
@@ -87,8 +92,8 @@ export default function PanelDashboardPage() {
         const d = json.data;
         setData({
           stats: {
-            activeProducts: d.activeProducts ?? 0,
-            pendingProducts: d.pendingProducts ?? 0,
+            catalogProducts: d.catalogProducts ?? 0,
+            discountRate: d.discountRate ?? 0,
             totalOrders: d.totalOrders ?? 0,
             pendingOrders: d.pendingOrders ?? 0,
           },
@@ -135,38 +140,11 @@ export default function PanelDashboardPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
 
-      {/* New Products CTA */}
-      {stats.pendingProducts > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-blue-900">
-                {stats.pendingProducts} yeni ürün eklendi
-              </p>
-              <p className="text-xs text-blue-600">
-                Katalogdaki yeni ürünleri sitenize aktarabilirsiniz.
-              </p>
-            </div>
-          </div>
-          <Link
-            href="/panel/products/new"
-            className="flex-shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            Yeni Ürünleri Incele
-          </Link>
-        </div>
-      )}
-
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Aktif Ürünler"
-          value={stats.activeProducts}
+          label="Katalog Ürünleri"
+          value={stats.catalogProducts}
           color="text-gray-900"
           icon={
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -175,12 +153,12 @@ export default function PanelDashboardPage() {
           }
         />
         <StatCard
-          label="Yeni Ürünler (Bekleyen)"
-          value={stats.pendingProducts}
-          color="text-blue-600"
+          label="İskonto Oranı"
+          value={stats.discountRate > 0 ? `%${stats.discountRate}` : "-"}
+          color={stats.discountRate > 0 ? "text-blue-600" : "text-gray-400"}
           icon={
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
             </svg>
           }
         />
@@ -220,7 +198,7 @@ export default function PanelDashboardPage() {
             <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
-            <p className="text-sm text-gray-500">Henüz siparis bulunmuyor.</p>
+            <p className="text-sm text-gray-500">Henüz sipariş bulunmuyor.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -247,7 +225,7 @@ export default function PanelDashboardPage() {
                     </td>
                     <td className="px-6 py-3 text-gray-900">{order.customerName}</td>
                     <td className="px-6 py-3 text-right text-gray-900 font-medium">
-                      {Number(order.totalAmount).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} TL
+                      {Number(order.totalAmount).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} &#8378;
                     </td>
                     <td className="px-6 py-3">
                       <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[order.status] || "bg-gray-100 text-gray-700"}`}>

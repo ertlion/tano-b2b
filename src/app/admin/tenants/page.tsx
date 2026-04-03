@@ -11,6 +11,7 @@ interface Tenant {
   marketplace: string;
   isApproved: boolean;
   isActive: boolean;
+  discountRate: string;
   createdAt: string;
 }
 
@@ -126,6 +127,7 @@ export default function TenantsPage() {
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Sirket</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Email</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Platform</th>
+                  <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">İskonto</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Durum</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Kayıt</th>
                   <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">İşlem</th>
@@ -142,6 +144,15 @@ export default function TenantsPage() {
                     <td className="px-6 py-3 text-gray-600">{tenant.company}</td>
                     <td className="px-6 py-3 text-gray-500">{tenant.email}</td>
                     <td className="px-6 py-3 text-gray-600">{MARKETPLACE_LABEL[tenant.marketplace] || tenant.marketplace}</td>
+                    <td className="px-6 py-3 text-right">
+                      {Number(tenant.discountRate) > 0 ? (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                          %{Number(tenant.discountRate).toLocaleString("tr-TR")}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">-</span>
+                      )}
+                    </td>
                     <td className="px-6 py-3">{getStatusBadge(tenant)}</td>
                     <td className="px-6 py-3 text-gray-500">{new Date(tenant.createdAt).toLocaleDateString("tr-TR")}</td>
                     <td className="px-6 py-3 text-right">

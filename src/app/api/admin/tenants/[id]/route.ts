@@ -30,6 +30,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         isAdmin: true,
         isApproved: true,
         isActive: true,
+        discountRate: true,
         notes: true,
         createdAt: true,
         updatedAt: true,
@@ -91,6 +92,18 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const body = await request.json();
 
+    // Validate discountRate if provided
+    if (body.discountRate !== undefined) {
+      const rate = parseFloat(body.discountRate);
+      if (isNaN(rate) || rate < 0 || rate > 100) {
+        return NextResponse.json(
+          { error: "İskonto oranı 0-100 arasında olmalıdır" },
+          { status: 400 }
+        );
+      }
+      body.discountRate = String(rate);
+    }
+
     const allowedFields = [
       "name",
       "company",
@@ -98,6 +111,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       "marketplace",
       "isApproved",
       "isActive",
+      "discountRate",
       "notes",
     ] as const;
 
@@ -121,6 +135,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         marketplace: tenants.marketplace,
         isApproved: tenants.isApproved,
         isActive: tenants.isActive,
+        discountRate: tenants.discountRate,
         notes: tenants.notes,
         updatedAt: tenants.updatedAt,
       });

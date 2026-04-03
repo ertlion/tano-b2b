@@ -2,42 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
-  tenantProducts,
   masterProducts,
   orders,
+  tenants,
 } from "@/lib/schema";
-import { eq, and, sql, desc, notInArray } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   try {
     const tenantId = await requireAuth(request);
 
-    // Active products count
-    const [activeResult] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(tenantProducts)
-      .where(
-        and(
-          eq(tenantProducts.tenantId, tenantId),
-          eq(tenantProducts.status, "active")
-        )
-      );
-
-    // Pending products: master products NOT in tenant's tenantProducts
-    const existingProductIds = db
-      .select({ masterProductId: tenantProducts.masterProductId })
-      .from(tenantProducts)
-      .where(eq(tenantProducts.tenantId, tenantId));
-
-    const [pendingResult] = await db
+    // Count all active master products (full catalog)
+    const [catalogResult] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(masterProducts)
-      .where(
-        and(
-          eq(masterProducts.status, "active"),
-          notInArray(masterProducts.id, existingProductIds)
-        )
-      );
+      .where(eq(masterProducts.status, "active"));
+
+    // Get tenant's discount rate
+    const tenant = await db.query.tenants.findFirst({
+      where: eq(tenants.id, tenantId),
+      columns: { discountRate: true },
+    });
 
     // Total orders
     const [totalOrdersResult] = await db
@@ -72,8 +57,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        activeProducts: activeResult?.count ?? 0,
-        pendingProducts: pendingResult?.count ?? 0,
+        catalogProducts: catalogResult?.count ?? 0,
+        discountRate: Number(tenant?.discountRate ?? 0),
         totalOrders: totalOrdersResult?.count ?? 0,
         pendingOrders: pendingOrdersResult?.count ?? 0,
         recentOrders,

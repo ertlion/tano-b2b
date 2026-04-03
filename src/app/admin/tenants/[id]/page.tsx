@@ -13,6 +13,7 @@ interface TenantDetail {
   marketplace: string;
   isApproved: boolean;
   isActive: boolean;
+  discountRate: string;
   notes: string | null;
   createdAt: string;
   tenantProductsCount: number;
@@ -34,6 +35,9 @@ export default function TenantDetailPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState("");
+  const [discountRate, setDiscountRate] = useState("");
+  const [discountSaving, setDiscountSaving] = useState(false);
+  const [discountMsg, setDiscountMsg] = useState("");
 
   async function loadTenant() {
     try {
@@ -41,6 +45,7 @@ export default function TenantDetailPage() {
       if (!res.ok) throw new Error();
       const json = await res.json();
       setTenant(json.data);
+      setDiscountRate(json.data.discountRate ?? "0");
     } catch {
       setError("Müşteri bilgileri yüklenemedi");
     } finally {
@@ -75,6 +80,34 @@ export default function TenantDetailPage() {
       // keep current state
     } finally {
       setActionLoading(false);
+    }
+  }
+
+  async function handleSaveDiscount() {
+    const rate = parseFloat(discountRate);
+    if (isNaN(rate) || rate < 0 || rate > 100) {
+      setDiscountMsg("0-100 arası bir değer girin");
+      return;
+    }
+    setDiscountSaving(true);
+    setDiscountMsg("");
+    try {
+      const res = await fetch(`/api/admin/tenants/${tenantId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ discountRate: String(rate) }),
+      });
+      if (res.ok) {
+        setDiscountMsg("Kaydedildi");
+        await loadTenant();
+      } else {
+        const json = await res.json();
+        setDiscountMsg(json.error || "Hata oluştu");
+      }
+    } catch {
+      setDiscountMsg("Bağlantı hatası");
+    } finally {
+      setDiscountSaving(false);
     }
   }
 
@@ -181,6 +214,47 @@ export default function TenantDetailPage() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Discount Rate */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">İskonto Oranı</h2>
+        <div className="flex items-end gap-3">
+          <div className="flex-1 max-w-xs">
+            <label className="block text-xs text-gray-500 mb-1">İskonto (%)</label>
+            <div className="relative">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={discountRate}
+                onChange={(e) => {
+                  setDiscountRate(e.target.value);
+                  setDiscountMsg("");
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-8"
+                placeholder="0"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Tano fiyatı üzerinden uygulanacak iskonto oranı
+            </p>
+          </div>
+          <button
+            onClick={handleSaveDiscount}
+            disabled={discountSaving}
+            className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors"
+          >
+            {discountSaving ? "Kaydediliyor..." : "Kaydet"}
+          </button>
+        </div>
+        {discountMsg && (
+          <p className={`text-xs mt-2 ${discountMsg === "Kaydedildi" ? "text-green-600" : "text-red-600"}`}>
+            {discountMsg}
+          </p>
+        )}
       </div>
 
       {/* Orders Summary */}

@@ -25,6 +25,7 @@ export const tenants = pgTable("tenants", {
   isAdmin: boolean("is_admin").default(false).notNull(),
   isApproved: boolean("is_approved").default(false).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
+  discountRate: numeric("discount_rate", { precision: 5, scale: 2 }).default("0").notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

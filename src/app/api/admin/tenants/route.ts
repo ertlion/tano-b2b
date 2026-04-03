@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
         isAdmin: true,
         isApproved: true,
         isActive: true,
+        discountRate: true,
         notes: true,
         createdAt: true,
         updatedAt: true,
