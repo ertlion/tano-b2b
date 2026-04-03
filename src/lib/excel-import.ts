@@ -108,7 +108,11 @@ function parseNumber(value: unknown, fallback: number = 0): number {
 // ─── COLUMN FINDER ────────────────────────────────────────
 
 function normalizeColumnName(raw: string): string {
-  return raw.trim().toLowerCase().replace(/\s+/g, " ");
+  return raw
+    .replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200A\u202F\u205F\u3000]/g, " ")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
 }
 
 function findColumn(
@@ -155,23 +159,24 @@ function parseExcelBuffer(buffer: Buffer, dollarRate: number): { rows: ExcelRow[
   }
 
   // Find columns (goods/mcapp format + simple format)
-  const barcodeCol = findColumn(headerMap, "barkod", "barcode", "barkod listesi", "sku");
+  const barcodeCol = findColumn(headerMap, "barkod", "barcode", "barkod listesi", "barkod fiyatı");
   const skuCol = findColumn(headerMap, "ürün kodu", "urun kodu", "sku", "reference") || barcodeCol;
-  const nameCol = findColumn(headerMap, "ürün adı", "urun adi", "ürün adi", "urun adı", "name", "başlık", "baslik", "title", "isim");
+  const nameCol = findColumn(headerMap, "ürün adı", "ürün adi", "urun adi", "urun adı", "name", "başlık", "baslik", "title", "isim");
   const categoryCol = findColumn(headerMap, "kategori", "category", "kategoriler");
   const colorCol = findColumn(headerMap, "renk", "color");
-  const sizeCol = findColumn(headerMap, "beden", "size");
-  const materialCol = findColumn(headerMap, "malzeme", "material");
+  const sizeCol = findColumn(headerMap, "beden", "size", "numara", "ebat");
+  const materialCol = findColumn(headerMap, "malzeme", "material", "ürün kumaş", "urun kumas", "kumaş", "kumas");
   const imageCol = findColumn(headerMap, "görsel url", "gorsel url", "image_url", "image", "resim", "görsel", "resim url");
-  const subcategoryCol = findColumn(headerMap, "alt kategori", "altkategori", "subcategory");
+  const subcategoryCol = findColumn(headerMap, "alt kategori", "altkategori", "subcategory", "seri içeriği", "seri icerigi");
   const weightCol = findColumn(headerMap, "ağırlık (gram)", "agirlik (gram)", "ağırlık", "agirlik", "weight");
+  const brandCol = findColumn(headerMap, "marka", "brand");
 
   // Log found/missing columns for debugging
   const columnLog: string[] = [];
   const allHeaders: string[] = [];
   headerMap.forEach((_orig, norm) => allHeaders.push(norm));
   columnLog.push(`Excel kolonları: ${allHeaders.join(", ")}`);
-  columnLog.push(`Eşleşen: barkod=${barcodeCol ? "✓" : "✗"}, sku=${skuCol ? "✓" : "✗"}, ad=${nameCol ? "✓" : "✗"}, renk=${colorCol ? "✓" : "✗"}, beden=${sizeCol ? "✓" : "✗"}, kategori=${categoryCol ? "✓" : "✗"}`);
+  columnLog.push(`Eşleşen: barkod=${barcodeCol || "✗"}, sku=${skuCol || "✗"}, ad=${nameCol || "✗"}, renk=${colorCol || "✗"}, beden=${sizeCol || "✗"}, kategori=${categoryCol || "✗"}, malzeme=${materialCol || "✗"}, marka=${brandCol || "✗"}`);
 
   if (!barcodeCol && !skuCol) {
     return { rows: [], errors: ["'Barkod' veya 'SKU' sütunu bulunamadı", ...columnLog] };
