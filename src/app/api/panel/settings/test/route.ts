@@ -27,19 +27,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Credentials bulunamadı. Lütfen ayarlarınızı kaydedin." }, { status: 400 });
     }
 
+    // Check which required fields are missing
+    const config = (await import("@/lib/marketplace/settings-map")).MARKETPLACE_SETTINGS[marketplace];
+    const missingFields: string[] = [];
+    if (config) {
+      for (const { key, label, group } of config.settingsKeys) {
+        if (group === "pricing") continue;
+        const val = credentials[key as keyof typeof credentials];
+        if (!val || (typeof val === "string" && !val.trim())) {
+          missingFields.push(label);
+        }
+      }
+    }
+
+    if (missingFields.length > 0) {
+      return NextResponse.json(
+        { error: `Eksik alanlar: ${missingFields.join(", ")}. Lütfen önce kaydedin.` },
+        { status: 422 }
+      );
+    }
+
     const adapter = getAdapter(marketplace);
-    const valid = await adapter.validateCredentials(credentials);
+    let valid = false;
+    let errorDetail = "";
+    try {
+      valid = await adapter.validateCredentials(credentials);
+    } catch (err) {
+      errorDetail = err instanceof Error ? err.message : String(err);
+    }
 
     if (valid) {
       return NextResponse.json({ success: true, message: "Bağlantı başarılı!" });
     } else {
-      return NextResponse.json(
-        { error: "Bağlantı başarısız. Bilgileri kontrol edin." },
-        { status: 422 }
-      );
+      const msg = errorDetail
+        ? `Bağlantı başarısız: ${errorDetail}`
+        : "Bağlantı başarısız. Bilgileri kontrol edin.";
+      return NextResponse.json({ error: msg }, { status: 422 });
     }
   } catch (error) {
     console.error("Settings test error:", error);
-    return NextResponse.json({ error: "Test sırasında hata oluştu" }, { status: 500 });
+    const detail = error instanceof Error ? error.message : "";
+    return NextResponse.json({ error: `Test sırasında hata oluştu${detail ? ": " + detail : ""}` }, { status: 500 });
   }
 }
