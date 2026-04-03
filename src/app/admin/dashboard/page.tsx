@@ -69,7 +69,18 @@ export default function DashboardPage() {
         const res = await fetch("/api/admin/dashboard");
         if (!res.ok) throw new Error("Veri alinamadi");
         const json = await res.json();
-        setData(json);
+        const d = json.data || json;
+        setData({
+          stats: {
+            totalProducts: d.totalProducts ?? d.stats?.totalProducts ?? 0,
+            totalStock: d.totalStock ?? d.stats?.totalStock ?? 0,
+            activeCustomers: d.activeTenants ?? d.stats?.activeCustomers ?? 0,
+            pendingApproval: d.pendingTenants ?? d.stats?.pendingApproval ?? 0,
+            totalOrders: d.totalOrders ?? d.stats?.totalOrders ?? 0,
+            pendingOrders: d.pendingOrders ?? d.stats?.pendingOrders ?? 0,
+          },
+          recentOrders: d.recentOrders ?? [],
+        });
       } catch {
         setError("Dashboard verileri yuklenemedi");
       } finally {
