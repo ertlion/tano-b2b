@@ -115,11 +115,23 @@ function findColumn(
   headers: Map<string, string>,
   ...candidates: string[]
 ): string | null {
+  // Exact match first
   for (const c of candidates) {
     const found = headers.get(c);
     if (found) return found;
   }
-  return null;
+  // Partial match: header contains candidate or candidate contains header
+  let result: string | null = null;
+  headers.forEach((original, normalized) => {
+    if (result) return;
+    for (const c of candidates) {
+      if (normalized.includes(c) || c.includes(normalized)) {
+        result = original;
+        return;
+      }
+    }
+  });
+  return result;
 }
 
 // ─── PARSE EXCEL ──────────────────────────────────────────
@@ -154,8 +166,15 @@ function parseExcelBuffer(buffer: Buffer, dollarRate: number): { rows: ExcelRow[
   const subcategoryCol = findColumn(headerMap, "alt kategori", "altkategori", "subcategory");
   const weightCol = findColumn(headerMap, "ağırlık (gram)", "agirlik (gram)", "ağırlık", "agirlik", "weight");
 
+  // Log found/missing columns for debugging
+  const columnLog: string[] = [];
+  const allHeaders: string[] = [];
+  headerMap.forEach((_orig, norm) => allHeaders.push(norm));
+  columnLog.push(`Excel kolonları: ${allHeaders.join(", ")}`);
+  columnLog.push(`Eşleşen: barkod=${barcodeCol ? "✓" : "✗"}, sku=${skuCol ? "✓" : "✗"}, ad=${nameCol ? "✓" : "✗"}, renk=${colorCol ? "✓" : "✗"}, beden=${sizeCol ? "✓" : "✗"}, kategori=${categoryCol ? "✓" : "✗"}`);
+
   if (!barcodeCol && !skuCol) {
-    return { rows: [], errors: ["'Barkod' veya 'SKU' sütunu bulunamadı"] };
+    return { rows: [], errors: ["'Barkod' veya 'SKU' sütunu bulunamadı", ...columnLog] };
   }
 
   // ── Stock calculation (goods/mcapp format): (L × I) + M ──
@@ -282,7 +301,7 @@ function parseExcelBuffer(buffer: Buffer, dollarRate: number): { rows: ExcelRow[
     });
   }
 
-  return { rows, errors };
+  return { rows, errors: [...columnLog, ...errors] };
 }
 
 // ─── GROUP BY SKU ─────────────────────────────────────────
