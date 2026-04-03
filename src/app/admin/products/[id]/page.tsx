@@ -39,6 +39,7 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -100,6 +101,19 @@ export default function ProductDetailPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!window.confirm("Bu urunu silmek istediginize emin misiniz?")) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/products/${productId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Silme basarisiz");
+      window.location.href = "/admin/products";
+    } catch {
+      setError("Urun silinirken hata olustu");
+      setDeleting(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -128,15 +142,32 @@ export default function ProductDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href="/admin/products" className="text-gray-400 hover:text-gray-600 transition-colors">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{product.name}</h1>
-          <p className="text-sm text-gray-500">SKU: {product.sku}</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link href="/admin/products" className="text-gray-400 hover:text-gray-600 transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{product.name}</h1>
+            <p className="text-sm text-gray-500">SKU: {product.sku}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/admin/products/${productId}/edit`}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            Duzenle
+          </Link>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            {deleting ? "Siliniyor..." : "Sil"}
+          </button>
         </div>
       </div>
 

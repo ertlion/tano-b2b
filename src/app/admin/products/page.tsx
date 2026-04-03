@@ -4,6 +4,12 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+interface MasterVariant {
+  id: number;
+  size: string;
+  stockQuantity: number;
+}
+
 interface Product {
   id: number;
   name: string;
@@ -12,6 +18,7 @@ interface Product {
   status: string;
   variantCount: number;
   totalStock: number;
+  masterVariants?: MasterVariant[];
 }
 
 interface ProductsResponse {
@@ -55,8 +62,13 @@ export default function ProductsPage() {
       const res = await fetch(`/api/admin/products?${params}`);
       if (!res.ok) throw new Error();
       const json = await res.json();
+      const products = (json.data || []).map((p: Product & { masterVariants?: MasterVariant[] }) => ({
+        ...p,
+        variantCount: p.masterVariants?.length ?? p.variantCount ?? 0,
+        totalStock: p.masterVariants?.reduce((sum: number, v: MasterVariant) => sum + (v.stockQuantity || 0), 0) ?? p.totalStock ?? 0,
+      }));
       setData({
-        products: json.data || [],
+        products,
         total: json.meta?.total ?? 0,
       });
     } catch {
@@ -74,21 +86,45 @@ export default function ProductsPage() {
     setPage(1);
   }, [search, category, status]);
 
+  async function handleDelete(productId: number, productName: string) {
+    if (!window.confirm(`"${productName}" urununu silmek istediginize emin misiniz?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/products/${productId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      fetchProducts();
+    } catch {
+      alert("Urun silinirken hata olustu");
+    }
+  }
+
   const totalPages = data ? Math.ceil(data.total / limit) : 0;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Ürünler</h1>
-        <Link
-          href="/admin/products/import"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-          </svg>
-          Excel Import
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/products/new"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Yeni Urun
+          </Link>
+          <Link
+            href="/admin/products/import"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            Excel Import
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}
@@ -152,6 +188,7 @@ export default function ProductsPage() {
                     <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Varyant</th>
                     <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Stok</th>
                     <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Durum</th>
+                    <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Islemler</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -170,6 +207,22 @@ export default function ProductsPage() {
                         <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[product.status] || "bg-gray-100 text-gray-700"}`}>
                           {STATUS_LABEL[product.status] || product.status}
                         </span>
+                      </td>
+                      <td className="px-6 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                          <Link
+                            href={`/admin/products/${product.id}/edit`}
+                            className="px-2.5 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                          >
+                            Duzenle
+                          </Link>
+                          <button
+                            onClick={() => handleDelete(product.id, product.name)}
+                            className="px-2.5 py-1 text-xs font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                          >
+                            Sil
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
