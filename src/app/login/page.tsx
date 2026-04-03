@@ -30,7 +30,7 @@ export default function LoginPage() {
         return;
       }
 
-      if (data.tenant?.isAdmin) {
+      if (data.user?.isAdmin) {
         router.push("/admin/dashboard");
       } else {
         router.push("/panel/dashboard");

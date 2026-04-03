@@ -47,9 +47,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const isHttps = request.nextUrl.protocol === "https:";
     response.cookies.set(SESSION_COOKIE, token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isHttps,
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60,
       path: "/",
