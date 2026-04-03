@@ -29,10 +29,10 @@ export function middleware(request: NextRequest) {
 
   const hasCookie = request.cookies.has(SESSION_COOKIE);
 
-  // Public pages: if already logged in, redirect to panel
+  // Public pages: if already logged in, redirect to dashboard
   if (PUBLIC_PATHS.some((p) => pathname === p)) {
     if (hasCookie) {
-      return NextResponse.redirect(new URL("/panel", request.url));
+      return NextResponse.redirect(new URL("/panel/dashboard", request.url));
     }
     return NextResponse.next();
   }
