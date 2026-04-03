@@ -21,9 +21,7 @@ import {
 interface ShopifyAdapterCredentials extends MarketplaceCredentials {
   marketplace: "shopify";
   shopify_store_url: string;
-  shopify_client_id: string;
-  shopify_client_secret: string;
-  shopify_location_id?: string;
+  shopify_access_token: string;
   shopify_product_status?: string;
 }
 
@@ -31,8 +29,7 @@ function toShopifyCreds(creds: MarketplaceCredentials): ShopifyCredentials {
   const c = creds as ShopifyAdapterCredentials;
   return {
     storeUrl: c.shopify_store_url,
-    clientId: c.shopify_client_id,
-    clientSecret: c.shopify_client_secret,
+    accessToken: c.shopify_access_token,
   };
 }
 
@@ -41,12 +38,7 @@ async function resolveLocationId(
   adapterCreds: ShopifyAdapterCredentials,
   inventoryItemId?: number
 ): Promise<string> {
-  // 1. Use explicit location from settings
-  if (adapterCreds.shopify_location_id) {
-    return adapterCreds.shopify_location_id;
-  }
-
-  // 2. Try to get from inventory item
+  // 1. Try to get from inventory item
   if (inventoryItemId) {
     try {
       return await getLocationFromInventoryItem(shopifyCreds, inventoryItemId);
@@ -65,19 +57,17 @@ export class ShopifyAdapter implements MarketplaceAdapter {
   readonly isAsync = false;
   readonly requiredSettings = [
     "shopify_store_url",
-    "shopify_client_id",
-    "shopify_client_secret",
+    "shopify_access_token",
   ];
 
   async validateCredentials(
     credentials: MarketplaceCredentials
   ): Promise<boolean> {
     const shopifyCreds = toShopifyCreds(credentials);
-    // Just verify we can get a token - don't require location
     const res = await fetch(`https://${shopifyCreds.storeUrl}/admin/api/2024-01/shop.json`, {
       headers: {
         "Content-Type": "application/json",
-        "X-Shopify-Access-Token": await getAccessToken(shopifyCreds),
+        "X-Shopify-Access-Token": shopifyCreds.accessToken,
       },
     });
     if (!res.ok) {
@@ -129,7 +119,7 @@ export class ShopifyAdapter implements MarketplaceAdapter {
       // Add to collection if categoryMapping has a collection ID
       if (product.categoryMapping?.externalCategoryId) {
         try {
-          const token = await getAccessToken(toShopifyCreds(credentials));
+          const token = getAccessToken(toShopifyCreds(credentials));
           const collectionId = product.categoryMapping.externalCategoryId;
           await fetch(
             `https://${shopifyCreds.storeUrl}/admin/api/2024-01/collects.json`,
@@ -184,7 +174,7 @@ export class ShopifyAdapter implements MarketplaceAdapter {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            "X-Shopify-Access-Token": await getAccessToken(shopifyCreds),
+            "X-Shopify-Access-Token": getAccessToken(shopifyCreds),
           },
           body: JSON.stringify({ product: updatePayload }),
         }
@@ -316,7 +306,7 @@ export class ShopifyAdapter implements MarketplaceAdapter {
               headers: {
                 "Content-Type": "application/json",
                 "X-Shopify-Access-Token":
-                  await getAccessToken(shopifyCreds),
+                  getAccessToken(shopifyCreds),
               },
               body: JSON.stringify({ variant: updatePayload }),
             }
@@ -368,7 +358,7 @@ export class ShopifyAdapter implements MarketplaceAdapter {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            "X-Shopify-Access-Token": await getAccessToken(shopifyCreds),
+            "X-Shopify-Access-Token": getAccessToken(shopifyCreds),
           },
           body: JSON.stringify({ product: { id: productId, status: "archived" } }),
         }
@@ -402,7 +392,7 @@ export class ShopifyAdapter implements MarketplaceAdapter {
   ): Promise<CategoryNode[]> {
     try {
       const shopifyCreds = toShopifyCreds(credentials);
-      const token = await getAccessToken(shopifyCreds);
+      const token = getAccessToken(shopifyCreds);
 
       // Fetch custom collections
       const customRes = await fetch(

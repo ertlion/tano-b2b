@@ -1,7 +1,6 @@
 export interface ShopifyCredentials {
   storeUrl: string;
-  clientId: string;
-  clientSecret: string;
+  accessToken: string;
 }
 
 const lastRequestTime = new Map<string, number>();
@@ -14,47 +13,16 @@ async function rateLimitWait(storeUrl: string) {
   lastRequestTime.set(storeUrl, Date.now());
 }
 
-const tokenCache = new Map<string, { token: string; expiresAt: number }>();
 const locationCache = new Map<string, string>();
 
-export async function getAccessToken(creds: ShopifyCredentials): Promise<string> {
-  const cached = tokenCache.get(creds.storeUrl);
-  if (cached && Date.now() < cached.expiresAt - 60_000) {
-    return cached.token;
-  }
-
-  const res = await fetch(`https://${creds.storeUrl}/admin/oauth/access_token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: creds.clientId,
-      client_secret: creds.clientSecret,
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Shopify token request failed: ${res.status} - ${err}`);
-  }
-
-  const data = await res.json();
-  const token = data.access_token as string;
-  const expiresIn = (data.expires_in as number) || 86399;
-
-  tokenCache.set(creds.storeUrl, {
-    token,
-    expiresAt: Date.now() + expiresIn * 1000,
-  });
-
-  return token;
+export function getAccessToken(creds: ShopifyCredentials): string {
+  return creds.accessToken;
 }
 
-async function getHeaders(creds: ShopifyCredentials): Promise<HeadersInit> {
-  const token = await getAccessToken(creds);
+function getHeaders(creds: ShopifyCredentials): HeadersInit {
   return {
     "Content-Type": "application/json",
-    "X-Shopify-Access-Token": token,
+    "X-Shopify-Access-Token": creds.accessToken,
   };
 }
 
@@ -69,9 +37,10 @@ export async function getLocationFromInventoryItem(
   const cached = locationCache.get(creds.storeUrl);
   if (cached) return cached;
 
+  await rateLimitWait(creds.storeUrl);
   const res = await fetch(
     `${getBaseUrl(creds)}/inventory_levels.json?inventory_item_ids=${inventoryItemId}`,
-    { headers: await getHeaders(creds) }
+    { headers: getHeaders(creds) }
   );
 
   if (!res.ok) {
@@ -95,8 +64,9 @@ export async function getPrimaryLocationId(creds: ShopifyCredentials): Promise<s
   const cached = locationCache.get(creds.storeUrl);
   if (cached) return cached;
 
+  await rateLimitWait(creds.storeUrl);
   const res = await fetch(`${getBaseUrl(creds)}/locations.json`, {
-    headers: await getHeaders(creds),
+    headers: getHeaders(creds),
   });
 
   if (!res.ok) {
@@ -161,9 +131,10 @@ export async function createShopifyProduct(
     },
   };
 
+  await rateLimitWait(creds.storeUrl);
   const res = await fetch(`${getBaseUrl(creds)}/products.json`, {
     method: "POST",
-    headers: await getHeaders(creds),
+    headers: getHeaders(creds),
     body: JSON.stringify(body),
   });
 
@@ -203,7 +174,7 @@ export async function updateShopifyInventory(
   await rateLimitWait(creds.storeUrl);
   const res = await fetch(`${getBaseUrl(creds)}/inventory_levels/set.json`, {
     method: "POST",
-    headers: await getHeaders(creds),
+    headers: getHeaders(creds),
     body: JSON.stringify({
       inventory_item_id: inventoryItemId,
       location_id: parseInt(locationId, 10),
@@ -223,7 +194,7 @@ export async function getShopifyProduct(
 ): Promise<ShopifyProduct> {
   await rateLimitWait(creds.storeUrl);
   const res = await fetch(`${getBaseUrl(creds)}/products/${productId}.json`, {
-    headers: await getHeaders(creds),
+    headers: getHeaders(creds),
   });
 
   if (!res.ok) {

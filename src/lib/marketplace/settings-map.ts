@@ -24,8 +24,7 @@ export const MARKETPLACE_SETTINGS: Record<
     displayName: "Shopify",
     settingsKeys: [
       { key: "shopify_store_url", label: "Store URL", type: "text" },
-      { key: "shopify_client_id", label: "Client ID", type: "text" },
-      { key: "shopify_client_secret", label: "Client Secret", type: "password" },
+      { key: "shopify_access_token", label: "Admin API Access Token", type: "password" },
       { key: "shopify_product_status", label: "Ürün Durumu", type: "select", options: [{ value: "draft", label: "Taslak" }, { value: "active", label: "Aktif" }] },
       ...pricingKeys("shopify"),
     ],
