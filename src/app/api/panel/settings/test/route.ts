@@ -33,7 +33,10 @@ export async function POST(request: NextRequest) {
     if (valid) {
       return NextResponse.json({ success: true, message: "Bağlantı başarılı!" });
     } else {
-      return NextResponse.json({ success: false, message: "Bağlantı başarısız. Credentials'ları kontrol edin." });
+      return NextResponse.json(
+        { error: "Bağlantı başarısız. Bilgileri kontrol edin." },
+        { status: 422 }
+      );
     }
   } catch (error) {
     console.error("Settings test error:", error);
