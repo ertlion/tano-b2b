@@ -159,6 +159,89 @@ export async function sendOrderStatusEmail(data: OrderStatusNotification): Promi
   }
 }
 
+// ─── BACK IN STOCK EMAIL ──────────────────────────────────
+
+interface BackInStockNotification {
+  tenantEmail: string;
+  tenantName: string;
+  discountRate: number;
+  products: Array<{
+    name: string;
+    sku: string;
+    color: string;
+    size: string;
+    salePrice: number;
+    newStock: number;
+  }>;
+}
+
+export async function sendBackInStockEmail(data: BackInStockNotification): Promise<void> {
+  if (data.products.length === 0) return;
+  const transporter = getTransporter();
+  if (!transporter) return;
+
+  const rows = data.products
+    .map((p) => {
+      const customerPrice = data.discountRate > 0
+        ? p.salePrice * (1 - data.discountRate / 100)
+        : p.salePrice;
+      return `
+      <tr>
+        <td style="padding:8px;border:1px solid #e5e7eb;font-weight:500">${p.name}</td>
+        <td style="padding:8px;border:1px solid #e5e7eb">${p.color || "-"}</td>
+        <td style="padding:8px;border:1px solid #e5e7eb">${p.size}</td>
+        <td style="padding:8px;border:1px solid #e5e7eb;text-align:right">${data.discountRate > 0 ? `<s style="color:#9ca3af">₺${p.salePrice.toFixed(2)}</s> <strong style="color:#16a34a">₺${customerPrice.toFixed(2)}</strong>` : `₺${p.salePrice.toFixed(2)}`}</td>
+        <td style="padding:8px;border:1px solid #e5e7eb;text-align:center;color:#16a34a;font-weight:bold">${p.newStock}</td>
+      </tr>`;
+    })
+    .join("");
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:700px;margin:0 auto">
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin-bottom:16px">
+        <h2 style="margin:0;color:#166534">🔄 Stoklar Yenilendi!</h2>
+      </div>
+      <p style="color:#6b7280">Merhaba <strong>${data.tenantName}</strong>,</p>
+      <p style="color:#6b7280">Daha önce tükenen <strong>${data.products.length}</strong> ürün tekrar stoğa girdi. Hemen panelinizden inceleyebilirsiniz.</p>
+
+      <table style="width:100%;border-collapse:collapse;font-size:14px;margin:16px 0">
+        <thead>
+          <tr style="background:#f9fafb">
+            <th style="padding:8px;border:1px solid #e5e7eb;text-align:left">Ürün</th>
+            <th style="padding:8px;border:1px solid #e5e7eb;text-align:left">Renk</th>
+            <th style="padding:8px;border:1px solid #e5e7eb;text-align:left">Beden</th>
+            <th style="padding:8px;border:1px solid #e5e7eb;text-align:right">Fiyat</th>
+            <th style="padding:8px;border:1px solid #e5e7eb;text-align:center">Stok</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+
+      <a href="${process.env.NEXT_PUBLIC_APP_URL}/panel/products"
+         style="display:inline-block;background:#16a34a;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:500;margin-top:8px">
+        Kataloğu İncele
+      </a>
+
+      <p style="color:#9ca3af;font-size:12px;margin-top:24px">
+        Bu mail Tano Atelier B2B Panel tarafından otomatik gönderilmiştir.
+      </p>
+    </div>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_USER,
+      to: data.tenantEmail,
+      subject: `Tano Atelier - ${data.products.length} Ürün Tekrar Stokta!`,
+      html,
+    });
+  } catch (err) {
+    console.error(`Failed to send back-in-stock email to ${data.tenantEmail}:`, err);
+  }
+}
+
+// ─── STOCK CHANGE EMAIL ──────────────────────────────────
+
 interface StockChangeNotification {
   tenantEmail: string;
   tenantName: string;

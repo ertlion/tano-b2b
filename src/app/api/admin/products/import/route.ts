@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { processExcelImport } from "@/lib/excel-import";
 import { syncAllTenantsStock } from "@/lib/sync-engine";
-import { sendNewProductsEmail } from "@/lib/mailer";
+import { sendNewProductsEmail, sendBackInStockEmail } from "@/lib/mailer";
 import { db } from "@/lib/db";
 import {
   tenants,
@@ -54,6 +54,16 @@ export async function POST(request: NextRequest) {
     if (result.newProducts > 0) {
       notifyTenantsAboutNewProducts(result).catch((err) => {
         console.error("[IMPORT] Tenant notification failed:", err);
+      });
+    }
+
+    // Send "back in stock" emails for variants that went from 0 → >0
+    const backInStock = result.stockChanges.filter(
+      (sc) => sc.previousStock === 0 && sc.newStock > 0
+    );
+    if (backInStock.length > 0) {
+      notifyTenantsBackInStock(backInStock).catch((err) => {
+        console.error("[IMPORT] Back-in-stock notification failed:", err);
       });
     }
 
@@ -153,6 +163,56 @@ async function notifyTenantsAboutNewProducts(
         `[IMPORT] Failed to notify tenant ${tenant.id}:`,
         err
       );
+    }
+  }
+}
+
+/**
+ * Notify tenants about products that are back in stock (was 0, now > 0).
+ */
+async function notifyTenantsBackInStock(
+  backInStock: Array<{ variantId: number; sku: string; barcode: string; size: string; previousStock: number; newStock: number }>
+) {
+  const approvedTenants = await db.query.tenants.findMany({
+    where: and(
+      eq(tenants.isApproved, true),
+      eq(tenants.isActive, true),
+      eq(tenants.isAdmin, false)
+    ),
+    columns: { id: true, name: true, email: true, discountRate: true },
+  });
+
+  if (approvedTenants.length === 0) return;
+
+  // Fetch variant details with product info
+  const variantIds = backInStock.map((sc) => sc.variantId);
+  const variants = await db.query.masterVariants.findMany({
+    where: inArray(masterVariants.id, variantIds),
+    with: { masterProduct: true },
+  });
+
+  const products = variants.map((v) => {
+    const sc = backInStock.find((s) => s.variantId === v.id);
+    return {
+      name: v.masterProduct.name,
+      sku: v.masterProduct.sku,
+      color: v.color || v.masterProduct.color || "",
+      size: v.size,
+      salePrice: Number(v.salePrice),
+      newStock: sc?.newStock ?? v.stockQuantity,
+    };
+  });
+
+  for (const tenant of approvedTenants) {
+    try {
+      await sendBackInStockEmail({
+        tenantEmail: tenant.email,
+        tenantName: tenant.name,
+        discountRate: Number(tenant.discountRate ?? 0),
+        products,
+      });
+    } catch (err) {
+      console.error(`[IMPORT] Failed to send back-in-stock to tenant ${tenant.id}:`, err);
     }
   }
 }
