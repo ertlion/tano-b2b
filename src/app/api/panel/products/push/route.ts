@@ -11,11 +11,21 @@ export async function POST(request: NextRequest) {
     const tenantId = await requireAuth(request);
 
     const body = await request.json();
-    const { masterProductId, categoryMapping } = body;
 
-    if (!masterProductId || typeof masterProductId !== "number") {
+    // Support both formats:
+    // 1. { masterProductId: number } — single product
+    // 2. { productIds: number[], variantIds?: number[] } — from new products page
+    let productIds: number[] = [];
+
+    if (body.masterProductId && typeof body.masterProductId === "number") {
+      productIds = [body.masterProductId];
+    } else if (Array.isArray(body.productIds) && body.productIds.length > 0) {
+      productIds = body.productIds.filter((id: unknown) => typeof id === "number");
+    }
+
+    if (productIds.length === 0) {
       return NextResponse.json(
-        { error: "masterProductId (number) zorunlu" },
+        { error: "En az bir ürün seçilmeli" },
         { status: 400 }
       );
     }
@@ -26,31 +36,55 @@ export async function POST(request: NextRequest) {
     });
 
     if (!tenant) {
-      return NextResponse.json({ error: "Bayi bulunamadi" }, { status: 404 });
+      return NextResponse.json({ error: "Bayi bulunamadı" }, { status: 404 });
     }
 
     if (!tenant.marketplace) {
       return NextResponse.json(
-        { error: "Marketplace bilgisi tanimli degil" },
+        { error: "Marketplace bilgisi tanımlı değil" },
         { status: 400 }
       );
     }
 
-    const result = await pushProductToTenant(
-      tenantId,
-      tenant.marketplace as MarketplaceName,
-      masterProductId,
-      categoryMapping || undefined
-    );
+    const results = [];
+    const errors = [];
 
-    if (!result.success) {
+    for (const productId of productIds) {
+      try {
+        const result = await pushProductToTenant(
+          tenantId,
+          tenant.marketplace as MarketplaceName,
+          productId,
+          body.categoryMapping || undefined
+        );
+        if (result.success) {
+          results.push({ productId, success: true });
+        } else {
+          errors.push({ productId, error: result.error || "Aktarılamadı" });
+        }
+      } catch (err) {
+        errors.push({
+          productId,
+          error: err instanceof Error ? err.message : "Bilinmeyen hata",
+        });
+      }
+    }
+
+    if (errors.length > 0 && results.length === 0) {
       return NextResponse.json(
-        { error: result.error || "Ürün aktarılamadı" },
+        { error: errors.map((e) => e.error).join(", "), details: errors },
         { status: 400 }
       );
     }
 
-    return NextResponse.json({ success: true, data: result });
+    return NextResponse.json({
+      success: true,
+      data: {
+        pushed: results.length,
+        failed: errors.length,
+        errors: errors.length > 0 ? errors : undefined,
+      },
+    });
   } catch (error) {
     if (error instanceof Response) {
       return NextResponse.json(
