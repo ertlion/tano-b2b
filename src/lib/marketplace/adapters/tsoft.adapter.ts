@@ -21,6 +21,19 @@ function toTSoftCreds(creds: MarketplaceCredentials): TSoftCredentials {
   return creds as TSoftCredentials;
 }
 
+const TOKEN_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+interface CachedToken {
+  token: string;
+  expiresAt: number;
+}
+
+const tokenCache = new Map<string, CachedToken>();
+
+function getCacheKey(creds: TSoftCredentials): string {
+  return `${creds.tsoft_base_url}::${creds.tsoft_username}`;
+}
+
 function filterHttpsImages(images: string[]): string[] {
   return images.filter((img) => img.startsWith("https://"));
 }
@@ -38,6 +51,12 @@ export class TSoftAdapter implements MarketplaceAdapter {
   private async getToken(creds: TSoftCredentials): Promise<string> {
     if (creds.tsoft_access_token) {
       return creds.tsoft_access_token;
+    }
+
+    const cacheKey = getCacheKey(creds);
+    const cached = tokenCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.token;
     }
 
     const baseUrl = creds.tsoft_base_url.replace(/\/+$/, "");
@@ -62,6 +81,8 @@ export class TSoftAdapter implements MarketplaceAdapter {
     if (!token) {
       throw new Error("TSoft login did not return a token");
     }
+
+    tokenCache.set(cacheKey, { token, expiresAt: Date.now() + TOKEN_CACHE_TTL_MS });
 
     return token;
   }

@@ -19,15 +19,16 @@ export async function syncAllTenantsStock(): Promise<{
     where: and(eq(tenants.isActive, true), eq(tenants.isApproved, true)),
   });
 
+  const nonAdminTenants = activeTenants.filter((t) => !t.isAdmin);
+
   const result = {
-    totalTenants: activeTenants.length,
+    totalTenants: nonAdminTenants.length,
     successCount: 0,
     errorCount: 0,
     errors: [] as Array<{ tenantId: number; error: string }>,
   };
 
-  const syncPromises = activeTenants
-    .filter((t) => !t.isAdmin)
+  const syncPromises = nonAdminTenants
     .map(async (tenant) => {
       try {
         await syncTenantStock(tenant.id, tenant.marketplace as MarketplaceName);
