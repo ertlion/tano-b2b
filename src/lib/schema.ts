@@ -91,6 +91,7 @@ export const masterVariants = pgTable("master_variants", {
   masterProductId: integer("master_product_id")
     .notNull()
     .references(() => masterProducts.id),
+  color: varchar("color", { length: 100 }),
   size: varchar("size", { length: 20 }).notNull(),
   barcode: varchar("barcode", { length: 100 }).notNull().unique(),
   sku: varchar("sku", { length: 100 }).notNull(),

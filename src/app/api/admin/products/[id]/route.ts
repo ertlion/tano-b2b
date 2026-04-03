@@ -102,6 +102,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         id?: number;
         size: string;
         barcode: string;
+        color?: string;
         costPrice: number;
         salePrice: number;
         stock: number;
@@ -132,6 +133,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           .set({
             size: v.size?.trim(),
             barcode: v.barcode?.trim(),
+            color: v.color?.trim() ?? null,
             costPrice: String(v.costPrice ?? 0),
             salePrice: String(v.salePrice ?? 0),
             stockQuantity: v.stock ?? 0,
@@ -154,6 +156,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           salePrice: String(v.salePrice ?? 0),
           stockQuantity: v.stock ?? 0,
           weight: v.weight ?? null,
+          color: v.color?.trim() ?? null,
         });
       }
     }

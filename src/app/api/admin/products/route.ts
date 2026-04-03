@@ -78,6 +78,7 @@ export async function GET(request: NextRequest) {
 interface VariantInput {
   size: string;
   barcode: string;
+  color?: string;
   costPrice: number;
   salePrice: number;
   stock: number;
@@ -143,6 +144,7 @@ export async function POST(request: NextRequest) {
             salePrice: String(v.salePrice || 0),
             stockQuantity: v.stock || 0,
             weight: v.weight || null,
+            color: v.color?.trim() || null,
           })
           .returning();
         createdVariants.push(created);

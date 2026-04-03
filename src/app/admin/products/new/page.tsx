@@ -7,6 +7,7 @@ interface VariantRow {
   key: string;
   size: string;
   barcode: string;
+  color: string;
   costPrice: string;
   salePrice: string;
   stock: string;
@@ -17,6 +18,7 @@ function createEmptyVariant(): VariantRow {
     key: Math.random().toString(36).slice(2),
     size: "",
     barcode: "",
+    color: "",
     costPrice: "",
     salePrice: "",
     stock: "",
@@ -69,6 +71,7 @@ export default function NewProductPage() {
           .map((v) => ({
             size: v.size.trim(),
             barcode: v.barcode.trim(),
+            color: v.color.trim() || null,
             costPrice: parseFloat(v.costPrice) || 0,
             salePrice: parseFloat(v.salePrice) || 0,
             stock: parseInt(v.stock) || 0,
@@ -221,6 +224,7 @@ export default function NewProductPage() {
                 <thead>
                   <tr className="border-b border-gray-100">
                     <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Beden</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Renk</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Barkod</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Maliyet</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Satis Fiyati</th>
@@ -238,6 +242,15 @@ export default function NewProductPage() {
                           onChange={(e) => updateVariant(i, "size", e.target.value)}
                           placeholder="S, M, L..."
                           className="w-20 px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="px-4 py-2">
+                        <input
+                          type="text"
+                          value={v.color}
+                          onChange={(e) => updateVariant(i, "color", e.target.value)}
+                          placeholder="Renk"
+                          className="w-28 px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
                       </td>
                       <td className="px-4 py-2">

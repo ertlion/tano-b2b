@@ -298,6 +298,7 @@ interface ProductGroup {
   variants: Array<{
     barcode: string;
     size: string;
+    color: string;
     costPrice: number;
     salePrice: number;
     stock: number;
@@ -318,6 +319,7 @@ function groupBySku(rows: ExcelRow[]): ProductGroup[] {
       existing.variants.push({
         barcode: row.barcode,
         size: row.size,
+        color: row.color,
         costPrice: row.costPrice,
         salePrice: row.salePrice,
         stock: row.stock,
@@ -340,6 +342,7 @@ function groupBySku(rows: ExcelRow[]): ProductGroup[] {
         variants: [{
           barcode: row.barcode,
           size: row.size,
+          color: row.color,
           costPrice: row.costPrice,
           salePrice: row.salePrice,
           stock: row.stock,
@@ -436,6 +439,7 @@ export async function processExcelImport(
                 salePrice: String(v.salePrice),
                 weight: v.weight,
                 barcode: v.barcode || existingVariant.barcode,
+                color: v.color || existingVariant.color,
                 updatedAt: new Date(),
               })
               .where(eq(masterVariants.id, existingVariant.id));
@@ -474,6 +478,7 @@ export async function processExcelImport(
                 costPrice: String(v.costPrice),
                 salePrice: String(v.salePrice),
                 weight: v.weight,
+                color: v.color || null,
               })
               .returning();
 
@@ -531,6 +536,7 @@ export async function processExcelImport(
               costPrice: String(v.costPrice),
               salePrice: String(v.salePrice),
               weight: v.weight,
+              color: v.color || null,
             })
             .returning();
 

@@ -9,6 +9,7 @@ interface Variant {
   size: string;
   barcode: string;
   sku: string;
+  color: string | null;
   stockQuantity: number;
   costPrice: string;
   salePrice: string;
@@ -271,6 +272,7 @@ export default function ProductDetailPage() {
               <thead>
                 <tr className="border-b border-gray-100">
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Beden</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Renk</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Barkod</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">SKU</th>
                   <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Stok</th>
@@ -282,6 +284,7 @@ export default function ProductDetailPage() {
                 {product.masterVariants.map((v) => (
                   <tr key={v.id} className="hover:bg-gray-50">
                     <td className="px-6 py-3 text-gray-900 font-medium">{v.size}</td>
+                    <td className="px-6 py-3 text-gray-600">{v.color || "-"}</td>
                     <td className="px-6 py-3 text-gray-500 font-mono text-xs">{v.barcode}</td>
                     <td className="px-6 py-3 text-gray-500 font-mono text-xs">{v.sku}</td>
                     <td className={`px-6 py-3 text-center font-medium ${v.stockQuantity === 0 ? "text-red-600" : v.stockQuantity < 5 ? "text-yellow-600" : "text-gray-900"}`}>
