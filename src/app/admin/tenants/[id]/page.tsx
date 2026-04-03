@@ -15,34 +15,9 @@ interface TenantDetail {
   isActive: boolean;
   notes: string | null;
   createdAt: string;
-  activeProductsCount: number;
-  orders: Array<{
-    id: number;
-    orderNumber: string;
-    customerName: string;
-    totalAmount: string;
-    status: string;
-    createdAt: string;
-  }>;
+  tenantProductsCount: number;
+  ordersCount: number;
 }
-
-const STATUS_BADGE: Record<string, string> = {
-  new: "bg-blue-100 text-blue-700",
-  processing: "bg-blue-100 text-blue-700",
-  preparing: "bg-yellow-100 text-yellow-700",
-  shipped: "bg-purple-100 text-purple-700",
-  delivered: "bg-green-100 text-green-700",
-  cancelled: "bg-red-100 text-red-700",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  new: "Yeni",
-  processing: "Isleniyor",
-  preparing: "Hazirlaniyor",
-  shipped: "Kargoda",
-  delivered: "Teslim Edildi",
-  cancelled: "Iptal",
-};
 
 const MARKETPLACE_LABEL: Record<string, string> = {
   shopify: "Shopify",
@@ -64,8 +39,8 @@ export default function TenantDetailPage() {
     try {
       const res = await fetch(`/api/admin/tenants/${tenantId}`);
       if (!res.ok) throw new Error();
-      const data = await res.json();
-      setTenant(data);
+      const json = await res.json();
+      setTenant(json.data);
     } catch {
       setError("Musteri bilgileri yuklenemedi");
     } finally {
@@ -166,7 +141,7 @@ export default function TenantDetailPage() {
               </div>
               <div>
                 <p className="text-xs text-gray-500">Aktif Urun</p>
-                <p className="text-sm text-gray-900">{tenant.activeProductsCount}</p>
+                <p className="text-sm text-gray-900">{tenant.tenantProductsCount}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500">Durum</p>
@@ -208,52 +183,24 @@ export default function TenantDetailPage() {
         </div>
       </div>
 
-      {/* Orders */}
+      {/* Orders Summary */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Siparisler</h2>
         </div>
 
-        {tenant.orders.length === 0 ? (
-          <div className="px-6 py-12 text-center text-gray-500 text-sm">
-            Bu musteriye ait siparis bulunmuyor.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Siparis No</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Musteri</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Tutar</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Durum</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Tarih</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {tenant.orders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-3">
-                      <Link href={`/admin/orders/${order.id}`} className="text-blue-600 hover:text-blue-700 font-medium">
-                        {order.orderNumber}
-                      </Link>
-                    </td>
-                    <td className="px-6 py-3 text-gray-900">{order.customerName}</td>
-                    <td className="px-6 py-3 text-gray-900 font-medium">
-                      {Number(order.totalAmount).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} TL
-                    </td>
-                    <td className="px-6 py-3">
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[order.status] || "bg-gray-100 text-gray-700"}`}>
-                        {STATUS_LABEL[order.status] || order.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-3 text-gray-500">{new Date(order.createdAt).toLocaleDateString("tr-TR")}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <div className="px-6 py-8 text-center">
+          <p className="text-3xl font-bold text-gray-900">{tenant.ordersCount}</p>
+          <p className="text-sm text-gray-500 mt-1">Toplam Siparis</p>
+          {tenant.ordersCount > 0 && (
+            <Link
+              href={`/admin/orders?tenantId=${tenant.id}`}
+              className="inline-block mt-3 text-sm text-blue-600 hover:text-blue-700"
+            >
+              Siparisleri Gor
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );

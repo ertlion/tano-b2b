@@ -46,8 +46,8 @@ interface OrderDetail {
   notes: string | null;
   shippingAddress: ShippingAddress | null;
   items: OrderItem[];
-  statusHistory: StatusHistoryEntry[];
-  tenantCompany: string;
+  orderStatusHistory: StatusHistoryEntry[];
+  tenant: { company: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -91,7 +91,8 @@ export default function OrderDetailPage() {
     try {
       const res = await fetch(`/api/admin/orders/${orderId}`);
       if (!res.ok) throw new Error();
-      const data = await res.json();
+      const json = await res.json();
+      const data = json.data;
       setOrder(data);
       setNewStatus(data.status);
       setCargoCompany(data.cargoCompany || "");
@@ -183,7 +184,7 @@ export default function OrderDetailPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Siparis #{order.orderNumber}</h1>
-          <p className="text-sm text-gray-500">{order.tenantCompany}</p>
+          <p className="text-sm text-gray-500">{order.tenant?.company}</p>
         </div>
       </div>
 
@@ -376,13 +377,13 @@ export default function OrderDetailPage() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Durum Gecmisi</h2>
 
-            {order.statusHistory.length === 0 ? (
+            {order.orderStatusHistory.length === 0 ? (
               <p className="text-sm text-gray-500">Henuz durum degisikligi yok.</p>
             ) : (
               <div className="relative">
                 <div className="absolute left-3 top-2 bottom-2 w-px bg-gray-200" />
                 <div className="space-y-4">
-                  {order.statusHistory.map((entry) => (
+                  {order.orderStatusHistory.map((entry) => (
                     <div key={entry.id} className="relative pl-8">
                       <div className="absolute left-1.5 top-1.5 w-3 h-3 rounded-full bg-blue-500 border-2 border-white" />
                       <div>

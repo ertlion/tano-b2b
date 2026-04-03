@@ -49,12 +49,13 @@ export default function PanelSettingsPage() {
       try {
         const res = await fetch("/api/panel/settings");
         if (!res.ok) throw new Error();
-        const data = await res.json();
-        if (data.marketplace) {
+        const json = await res.json();
+        const data = json.data;
+        if (data?.marketplace) {
           setMarketplace(data.marketplace as Marketplace);
         }
-        if (data.credentials) {
-          setCredentials(data.credentials);
+        if (data?.settings) {
+          setCredentials(data.settings);
         }
       } catch {
         // Default empty
@@ -77,9 +78,9 @@ export default function PanelSettingsPage() {
 
     try {
       const res = await fetch("/api/panel/settings", {
-        method: "PUT",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ marketplace, credentials }),
+        body: JSON.stringify(credentials),
       });
 
       if (!res.ok) {

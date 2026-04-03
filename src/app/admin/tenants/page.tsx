@@ -40,8 +40,8 @@ export default function TenantsPage() {
       const params = filter ? `?status=${filter}` : "";
       const res = await fetch(`/api/admin/tenants${params}`);
       if (!res.ok) throw new Error();
-      const data = await res.json();
-      setTenants(data.tenants || []);
+      const json = await res.json();
+      setTenants(json.data || []);
     } catch {
       setTenants([]);
     } finally {

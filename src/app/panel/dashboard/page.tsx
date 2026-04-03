@@ -84,7 +84,16 @@ export default function PanelDashboardPage() {
         const res = await fetch("/api/panel/dashboard");
         if (!res.ok) throw new Error("Veri alinamadi");
         const json = await res.json();
-        setData(json);
+        const d = json.data;
+        setData({
+          stats: {
+            activeProducts: d.activeProducts ?? 0,
+            pendingProducts: d.pendingProducts ?? 0,
+            totalOrders: d.totalOrders ?? 0,
+            pendingOrders: d.pendingOrders ?? 0,
+          },
+          recentOrders: d.recentOrders || [],
+        });
       } catch {
         setError("Dashboard verileri yuklenemedi");
       } finally {

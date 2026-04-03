@@ -27,7 +27,7 @@ interface Product {
   material: string | null;
   status: string;
   images: string[];
-  variants: Variant[];
+  masterVariants: Variant[];
   createdAt: string;
   updatedAt: string;
 }
@@ -55,7 +55,8 @@ export default function ProductDetailPage() {
       try {
         const res = await fetch(`/api/admin/products/${productId}`);
         if (!res.ok) throw new Error("Urun bulunamadi");
-        const data = await res.json();
+        const json = await res.json();
+        const data = json.data;
         setProduct(data);
         setForm({
           name: data.name || "",
@@ -225,11 +226,11 @@ export default function ProductDetailPage() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">
-            Varyantlar ({product.variants.length})
+            Varyantlar ({product.masterVariants.length})
           </h2>
         </div>
 
-        {product.variants.length === 0 ? (
+        {product.masterVariants.length === 0 ? (
           <div className="px-6 py-12 text-center text-gray-500 text-sm">
             Bu urune ait varyant bulunmuyor.
           </div>
@@ -247,7 +248,7 @@ export default function ProductDetailPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {product.variants.map((v) => (
+                {product.masterVariants.map((v) => (
                   <tr key={v.id} className="hover:bg-gray-50">
                     <td className="px-6 py-3 text-gray-900 font-medium">{v.size}</td>
                     <td className="px-6 py-3 text-gray-500 font-mono text-xs">{v.barcode}</td>

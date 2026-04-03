@@ -18,8 +18,6 @@ interface Order {
 interface OrdersResponse {
   orders: Order[];
   total: number;
-  page: number;
-  limit: number;
 }
 
 const STATUS_OPTIONS = [
@@ -69,7 +67,10 @@ export default function PanelOrdersPage() {
       const res = await fetch(`/api/panel/orders?${params}`);
       if (!res.ok) throw new Error();
       const json = await res.json();
-      setData(json);
+      setData({
+        orders: json.data || [],
+        total: json.meta?.total ?? 0,
+      });
     } catch {
       setData(null);
     } finally {

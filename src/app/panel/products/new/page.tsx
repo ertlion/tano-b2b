@@ -54,7 +54,30 @@ export default function NewProductsPage() {
       const res = await fetch("/api/panel/products?tab=new");
       if (!res.ok) throw new Error("Urunler yuklenemedi");
       const json = await res.json();
-      setData(json);
+      const rawProducts = json.data || [];
+      const mapped = rawProducts.map((p: Record<string, unknown>) => {
+        const variants = (p.masterVariants || []) as Array<{ size: string; stockQuantity: number; salePrice?: number; costPrice?: number }>;
+        const prices = variants.map((v) => Number(v.salePrice || v.costPrice || 0));
+        return {
+          id: p.id as number,
+          sku: (p.sku as string) || "",
+          name: (p.name as string) || "",
+          category: (p.category as string) || null,
+          subcategory: (p.subcategory as string) || null,
+          color: (p.color as string) || null,
+          material: (p.material as string) || null,
+          sizes: variants.map((v) => v.size),
+          priceRange: {
+            min: prices.length > 0 ? Math.min(...prices) : 0,
+            max: prices.length > 0 ? Math.max(...prices) : 0,
+          },
+          totalStock: variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0),
+        };
+      });
+      setData({
+        products: mapped,
+        total: json.meta?.total ?? mapped.length,
+      });
     } catch {
       setError("Yeni urunler yuklenemedi");
     } finally {
@@ -67,7 +90,7 @@ export default function NewProductsPage() {
       const res = await fetch("/api/panel/categories");
       if (!res.ok) return;
       const json = await res.json();
-      setCategories(json.categories || []);
+      setCategories(json.data || []);
     } catch {
       // Categories might not be available yet
     }

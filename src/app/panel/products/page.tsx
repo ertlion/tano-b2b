@@ -14,6 +14,24 @@ interface Product {
   syncedAt: string | null;
 }
 
+interface ApiProduct {
+  id: number;
+  masterProductId?: number;
+  status: string;
+  syncedAt: string | null;
+  masterProduct?: {
+    name: string;
+    sku: string;
+    category: string | null;
+    masterVariants: Array<{ size: string; stockQuantity: number }>;
+  };
+  // For tab=new, fields are flat (masterProduct itself)
+  name?: string;
+  sku?: string;
+  category?: string | null;
+  masterVariants?: Array<{ size: string; stockQuantity: number }>;
+}
+
 interface ProductsResponse {
   products: Product[];
   total: number;
@@ -47,7 +65,26 @@ export default function PanelProductsPage() {
       const res = await fetch(`/api/panel/products?${params}`);
       if (!res.ok) throw new Error();
       const json = await res.json();
-      setData(json);
+      const rawProducts: ApiProduct[] = json.data || [];
+      const mapped: Product[] = rawProducts.map((p) => {
+        const mp = p.masterProduct;
+        const variants = mp?.masterVariants || p.masterVariants || [];
+        return {
+          id: p.id,
+          masterProductId: p.masterProductId ?? p.id,
+          name: mp?.name || p.name || "",
+          sku: mp?.sku || p.sku || "",
+          category: mp?.category ?? p.category ?? null,
+          sizes: variants.map((v) => v.size),
+          totalStock: variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0),
+          status: p.status,
+          syncedAt: p.syncedAt ?? null,
+        };
+      });
+      setData({
+        products: mapped,
+        total: json.meta?.total ?? mapped.length,
+      });
     } catch {
       setData(null);
     } finally {

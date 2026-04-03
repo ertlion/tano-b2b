@@ -27,13 +27,14 @@ export default function SettingsPage() {
       try {
         const res = await fetch("/api/admin/settings");
         if (!res.ok) throw new Error();
-        const data = await res.json();
-        if (data.smtp) {
+        const json = await res.json();
+        const data = json.data || {};
+        if (data.smtp_host || data.smtp_port || data.smtp_user || data.smtp_password) {
           setForm({
-            host: data.smtp.host || "",
-            port: data.smtp.port || "587",
-            user: data.smtp.user || "",
-            password: data.smtp.password || "",
+            host: data.smtp_host || "",
+            port: data.smtp_port || "587",
+            user: data.smtp_user || "",
+            password: data.smtp_password || "",
           });
         }
       } catch {
@@ -52,9 +53,13 @@ export default function SettingsPage() {
 
     try {
       const res = await fetch("/api/admin/settings", {
-        method: "PUT",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ smtp: form }),
+        body: JSON.stringify({
+          smtp_host: form.host,
+          smtp_port: form.port,
+          smtp_user: form.user,
+        }),
       });
 
       if (!res.ok) {

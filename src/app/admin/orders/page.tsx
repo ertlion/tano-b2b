@@ -17,8 +17,6 @@ interface Order {
 interface OrdersResponse {
   orders: Order[];
   total: number;
-  page: number;
-  limit: number;
 }
 
 const STATUS_OPTIONS = [
@@ -65,12 +63,15 @@ export default function OrdersPage() {
       params.set("page", String(page));
       params.set("limit", String(limit));
       if (statusFilter) params.set("status", statusFilter);
-      if (tenantFilter) params.set("tenant", tenantFilter);
+      if (tenantFilter) params.set("tenantId", tenantFilter);
 
       const res = await fetch(`/api/admin/orders?${params}`);
       if (!res.ok) throw new Error();
       const json = await res.json();
-      setData(json);
+      setData({
+        orders: json.data || [],
+        total: json.meta?.total ?? 0,
+      });
     } catch {
       setData(null);
     } finally {

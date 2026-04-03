@@ -17,8 +17,6 @@ interface Product {
 interface ProductsResponse {
   products: Product[];
   total: number;
-  page: number;
-  limit: number;
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -41,7 +39,7 @@ export default function ProductsPage() {
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories] = useState<string[]>([]);
   const limit = 20;
 
   const fetchProducts = useCallback(async () => {
@@ -57,11 +55,10 @@ export default function ProductsPage() {
       const res = await fetch(`/api/admin/products?${params}`);
       if (!res.ok) throw new Error();
       const json = await res.json();
-      setData(json);
-
-      if (json.categories) {
-        setCategories(json.categories);
-      }
+      setData({
+        products: json.data || [],
+        total: json.meta?.total ?? 0,
+      });
     } catch {
       setData(null);
     } finally {

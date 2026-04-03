@@ -46,7 +46,7 @@ interface OrderDetail {
   notes: string | null;
   shippingAddress: ShippingAddress | null;
   items: OrderItem[];
-  statusHistory: StatusHistoryEntry[];
+  orderStatusHistory: StatusHistoryEntry[];
   createdAt: string;
   updatedAt: string;
 }
@@ -82,8 +82,8 @@ export default function PanelOrderDetailPage() {
       try {
         const res = await fetch(`/api/panel/orders/${orderId}`);
         if (!res.ok) throw new Error();
-        const data = await res.json();
-        setOrder(data);
+        const json = await res.json();
+        setOrder(json.data);
       } catch {
         setError("Siparis yuklenemedi");
       } finally {
@@ -300,13 +300,13 @@ export default function PanelOrderDetailPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Durum Gecmisi</h2>
 
-            {order.statusHistory.length === 0 ? (
+            {order.orderStatusHistory.length === 0 ? (
               <p className="text-sm text-gray-500">Henuz durum degisikligi yok.</p>
             ) : (
               <div className="relative">
                 <div className="absolute left-3 top-2 bottom-2 w-px bg-gray-200" />
                 <div className="space-y-4">
-                  {order.statusHistory.map((entry) => (
+                  {order.orderStatusHistory.map((entry) => (
                     <div key={entry.id} className="relative pl-8">
                       <div className="absolute left-1.5 top-1.5 w-3 h-3 rounded-full bg-blue-500 border-2 border-white" />
                       <div>
