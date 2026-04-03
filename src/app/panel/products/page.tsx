@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 
 interface Variant {
   id: number;
@@ -39,6 +40,22 @@ function formatPrice(value: string | number): string {
   });
 }
 
+function getUniqueColors(variants: Variant[]): string[] {
+  const colors = new Set<string>();
+  for (const v of variants) {
+    if (v.color) colors.add(v.color);
+  }
+  return Array.from(colors);
+}
+
+function getUniqueSizes(variants: Variant[]): string[] {
+  const sizes = new Set<string>();
+  for (const v of variants) {
+    if (v.size && v.size !== "STD") sizes.add(v.size);
+  }
+  return Array.from(sizes);
+}
+
 export default function PanelProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [meta, setMeta] = useState<Meta | null>(null);
@@ -46,6 +63,7 @@ export default function PanelProductsPage() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [page, setPage] = useState(1);
+  const [hideOutOfStock, setHideOutOfStock] = useState(false);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -78,6 +96,10 @@ export default function PanelProductsPage() {
     setSearch(searchInput);
   }
 
+  const filteredProducts = hideOutOfStock
+    ? products.filter((p) => p.masterVariants.some((v) => v.stockQuantity > 0))
+    : products;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -94,46 +116,51 @@ export default function PanelProductsPage() {
         )}
       </div>
 
-      {/* Search */}
-      <form onSubmit={handleSearch} className="flex gap-2 max-w-md">
-        <input
-          type="text"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder="Ürün adı veya SKU ara..."
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-        <button
-          type="submit"
-          className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          Ara
-        </button>
-        {search && (
+      {/* Search + Filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <form onSubmit={handleSearch} className="flex gap-2 flex-1 max-w-md">
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Ürün adı veya SKU ara..."
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
           <button
-            type="button"
-            onClick={() => {
-              setSearchInput("");
-              setSearch("");
-              setPage(1);
-            }}
-            className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700"
+            type="submit"
+            className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition-colors"
           >
-            Temizle
+            Ara
           </button>
-        )}
-      </form>
+          {search && (
+            <button
+              type="button"
+              onClick={() => { setSearchInput(""); setSearch(""); setPage(1); }}
+              className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700"
+            >
+              Temizle
+            </button>
+          )}
+        </form>
+        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={hideOutOfStock}
+            onChange={(e) => setHideOutOfStock(e.target.checked)}
+            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          Stoksuzları gizle
+        </label>
+      </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+      {/* Product Cards */}
+      <div className="space-y-3">
         {loading ? (
-          <div className="p-6 space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-16 bg-gray-100 rounded animate-pulse" />
-            ))}
-          </div>
-        ) : products.length === 0 ? (
-          <div className="px-6 py-16 text-center">
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-24 bg-gray-100 rounded-lg animate-pulse" />
+          ))
+        ) : filteredProducts.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-6 py-16 text-center">
             <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
@@ -142,77 +169,88 @@ export default function PanelProductsPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Ürün</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">SKU</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Renk</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Bedenler</th>
-                  <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Tano Fiyatı</th>
-                  {meta && meta.discountRate > 0 && (
-                    <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">İskontolu Fiyat</th>
-                  )}
-                  <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Stok</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {products.map((product) => {
-                  const totalStock = product.masterVariants.reduce(
-                    (sum, v) => sum + (v.stockQuantity || 0),
-                    0
-                  );
-                  // Use first variant's salePrice as representative price
-                  const firstVariant = product.masterVariants[0];
-                  const salePrice = firstVariant ? firstVariant.salePrice : "0";
-                  const customerPrice = firstVariant ? firstVariant.customerPrice : "0";
-                  const sizes = product.masterVariants.map((v) => v.size);
+          filteredProducts.map((product) => {
+            const totalStock = product.masterVariants.reduce((s, v) => s + v.stockQuantity, 0);
+            const colors = getUniqueColors(product.masterVariants);
+            const sizes = getUniqueSizes(product.masterVariants);
+            const firstVariant = product.masterVariants[0];
+            const isOutOfStock = totalStock === 0;
 
-                  return (
-                    <tr key={product.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-3">
-                        <p className="text-gray-900 font-medium">{product.name}</p>
-                        {product.category && (
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            {product.category}
-                            {product.subcategory ? ` / ${product.subcategory}` : ""}
+            return (
+              <Link
+                key={product.id}
+                href={`/panel/products/${product.id}`}
+                className={`block bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:border-blue-300 hover:shadow-md transition-all ${
+                  isOutOfStock ? "opacity-50" : ""
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  {/* Left: Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-gray-900 truncate">{product.name}</h3>
+                      {isOutOfStock && (
+                        <span className="shrink-0 px-2 py-0.5 bg-red-100 text-red-600 rounded text-xs font-medium">
+                          Tükendi
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {product.sku}
+                      {product.category ? ` · ${product.category}` : ""}
+                    </p>
+
+                    {/* Colors */}
+                    {colors.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {colors.map((color) => (
+                          <span
+                            key={color}
+                            className="inline-block px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded text-xs"
+                          >
+                            {color}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Sizes */}
+                    {sizes.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {sizes.map((size) => (
+                          <span
+                            key={size}
+                            className="inline-block px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs"
+                          >
+                            {size}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right: Price + Stock */}
+                  <div className="text-right shrink-0">
+                    {firstVariant && (
+                      <>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {formatPrice(firstVariant.salePrice)} ₺
+                        </p>
+                        {meta && meta.discountRate > 0 && (
+                          <p className="text-sm font-bold text-green-600">
+                            {formatPrice(firstVariant.customerPrice)} ₺
                           </p>
                         )}
-                      </td>
-                      <td className="px-6 py-3 text-gray-500 font-mono text-xs">{product.sku}</td>
-                      <td className="px-6 py-3 text-gray-600 text-xs">{product.color || "-"}</td>
-                      <td className="px-6 py-3">
-                        <div className="flex flex-wrap gap-1">
-                          {sizes.map((size) => (
-                            <span
-                              key={size}
-                              className="inline-block px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs"
-                            >
-                              {size}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-6 py-3 text-right text-gray-900 font-medium whitespace-nowrap">
-                        {formatPrice(salePrice)} &#8378;
-                      </td>
-                      {meta && meta.discountRate > 0 && (
-                        <td className="px-6 py-3 text-right text-green-700 font-semibold whitespace-nowrap">
-                          {formatPrice(customerPrice)} &#8378;
-                        </td>
-                      )}
-                      <td className="px-6 py-3 text-center">
-                        <span className={`font-medium ${totalStock > 0 ? "text-gray-900" : "text-red-500"}`}>
-                          {totalStock}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Stok: <span className={`font-medium ${totalStock > 0 ? "text-gray-900" : "text-red-500"}`}>{totalStock}</span>
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            );
+          })
         )}
       </div>
 
