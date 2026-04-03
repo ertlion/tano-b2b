@@ -100,7 +100,7 @@ export class ShopifyAdapter implements MarketplaceAdapter {
         {
           title: product.title,
           bodyHtml: product.bodyHtml,
-          images: product.images,
+          images: [], // Görseller entegrasyona gönderilmez
           warehouseSku: product.warehouseSku,
           status:
             (adapterCreds.shopify_product_status as "active" | "draft") ||

@@ -115,6 +115,23 @@ export default function PanelProductDetailPage() {
         </div>
       </div>
 
+      {/* Image Gallery */}
+      {product.images && product.images.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+            {product.images.map((img, i) => (
+              <div key={i} className="aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                <img
+                  src={img}
+                  alt={`${product.name} - ${i + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Info Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">

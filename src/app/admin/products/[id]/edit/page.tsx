@@ -51,6 +51,7 @@ interface Product {
   color: string | null;
   material: string | null;
   status: string;
+  images: string[];
   masterVariants: ApiVariant[];
 }
 
@@ -75,6 +76,8 @@ export default function EditProductPage() {
   });
 
   const [variants, setVariants] = useState<VariantRow[]>([]);
+  const [images, setImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -95,6 +98,8 @@ export default function EditProductPage() {
           description: data.description || "",
           status: data.status || "active",
         });
+
+        setImages(data.images || []);
 
         setVariants(
           data.masterVariants.map((v) => ({
@@ -140,6 +145,51 @@ export default function EditProductPage() {
 
   function addVariant() {
     setVariants((prev) => [...prev, createEmptyVariant()]);
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch(`/api/admin/products/${productId}/images`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Gorsel yuklenemedi");
+
+      setImages(json.data.images);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gorsel yuklenirken hata olustu");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  }
+
+  async function handleImageDelete(index: number) {
+    if (!window.confirm("Bu gorseli silmek istediginize emin misiniz?")) return;
+    setError("");
+
+    try {
+      const res = await fetch(`/api/admin/products/${productId}/images?index=${index}`, {
+        method: "DELETE",
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Gorsel silinemedi");
+
+      setImages(json.data.images);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gorsel silinirken hata olustu");
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -320,6 +370,61 @@ export default function EditProductPage() {
               />
             </div>
           </div>
+        </div>
+
+        {/* Images */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-6 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Gorseller ({images.length}/5)
+            </h2>
+            {images.length < 5 && (
+              <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition-colors cursor-pointer ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                {uploading ? "Yukleniyor..." : "Gorsel Ekle"}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  disabled={uploading}
+                />
+              </label>
+            )}
+          </div>
+
+          {images.length === 0 ? (
+            <div className="py-8 text-center text-gray-400 text-sm">
+              Henuz gorsel eklenmemis.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              {images.map((img, i) => (
+                <div key={i} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                  <img
+                    src={img}
+                    alt={`Gorsel ${i + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleImageDelete(i)}
+                    className="absolute top-1 right-1 w-6 h-6 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                    title="Gorseli sil"
+                  >
+                    X
+                  </button>
+                  {i === 0 && (
+                    <span className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-blue-600 text-white text-xs rounded">
+                      Ana
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Variants */}
