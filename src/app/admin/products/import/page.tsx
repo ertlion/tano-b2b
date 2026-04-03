@@ -23,6 +23,7 @@ export default function ImportPage() {
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState("");
+  const [dollarRate, setDollarRate] = useState("34.0");
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleDrag(e: DragEvent) {
@@ -73,6 +74,7 @@ export default function ImportPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("dollarRate", dollarRate);
 
       const res = await fetch("/api/admin/products/import", {
         method: "POST",
@@ -86,7 +88,14 @@ export default function ImportPage() {
         return;
       }
 
-      setResult(data);
+      const d = data.data || data;
+      setResult({
+        newProducts: d.newProducts ?? 0,
+        updatedProducts: d.updatedProducts ?? 0,
+        totalVariants: d.totalVariants ?? 0,
+        stockChanges: d.stockChanges ?? [],
+        errors: d.errors ?? [],
+      });
       setFile(null);
     } catch {
       setError("Bir hata oluştu. Lütfen tekrar deneyin.");
@@ -160,6 +169,18 @@ export default function ImportPage() {
             {error}
           </div>
         )}
+
+        <div className="mt-4 flex items-center gap-3">
+          <label className="text-sm font-medium text-gray-700">Dolar Kuru (TL):</label>
+          <input
+            type="number"
+            step="0.1"
+            value={dollarRate}
+            onChange={(e) => setDollarRate(e.target.value)}
+            className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <span className="text-xs text-gray-500">Goods/mcapp formatı için fiyat çevirimi</span>
+        </div>
 
         <div className="mt-6 flex justify-end">
           <button

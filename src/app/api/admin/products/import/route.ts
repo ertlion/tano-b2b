@@ -38,8 +38,12 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
+    // Dollar rate for goods/mcapp price conversion
+    const dollarRateStr = formData.get("dollarRate") as string | null;
+    const dollarRate = dollarRateStr ? parseFloat(dollarRateStr) : 34.0;
+
     // Process the excel import
-    const result = await processExcelImport(buffer);
+    const result = await processExcelImport(buffer, dollarRate);
 
     // Sync stock to all tenant marketplaces (fire-and-forget with logging)
     syncAllTenantsStock().catch((err) => {
