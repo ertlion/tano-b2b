@@ -116,32 +116,39 @@ export async function pushProductToTenant(
 
   const adapter = getAdapter(marketplace);
 
+  // Check if already pushed
+  const existingTenantProduct = await db.query.tenantProducts.findFirst({
+    where: and(
+      eq(tenantProducts.tenantId, tenantId),
+      eq(tenantProducts.masterProductId, masterProductId)
+    ),
+  });
+
+  if (existingTenantProduct?.externalProductId) {
+    return { success: false, error: "Bu ürün zaten aktarılmış" };
+  }
+
   const product = await db.query.masterProducts.findFirst({
     where: eq(masterProducts.id, masterProductId),
   });
 
   if (!product) {
-    return { success: false, error: "Product not found" };
+    return { success: false, error: "Ürün bulunamadı" };
   }
 
   const variants = await db.query.masterVariants.findMany({
     where: eq(masterVariants.masterProductId, masterProductId),
   });
 
-  const result = await adapter.pushProduct(credentials, {
-    productId: product.id,
-    title: product.name,
-    description: product.description || "",
-    bodyHtml: product.description || "",
-    images: [], // NO IMAGES - müşteri kendi ekleyecek
-    coverImage: "",
-    warehouseSku: product.sku,
-    categoryMapping: categoryMapping
-      ? { externalCategoryId: categoryMapping }
-      : undefined,
-    variants: variants.map((v) => ({
+  // Build unique variant names: color + size, or just color/size if one is missing
+  const variantData = variants.map((v) => {
+    const parts: string[] = [];
+    if (v.color) parts.push(v.color);
+    if (v.size && v.size !== "STD") parts.push(v.size);
+    const sizeName = parts.length > 0 ? parts.join(" / ") : `${v.barcode}`;
+    return {
       variantId: v.id,
-      sizeName: v.size,
+      sizeName,
       sku: v.sku,
       barcode: v.barcode,
       costPrice: Number(v.costPrice),
@@ -149,7 +156,21 @@ export async function pushProductToTenant(
       stockQuantity: v.stockQuantity,
       widthCm: null,
       heightCm: null,
-    })),
+    };
+  });
+
+  const result = await adapter.pushProduct(credentials, {
+    productId: product.id,
+    title: product.name,
+    description: product.description || "",
+    bodyHtml: product.description || "",
+    images: [],
+    coverImage: "",
+    warehouseSku: product.sku,
+    categoryMapping: categoryMapping
+      ? { externalCategoryId: categoryMapping }
+      : undefined,
+    variants: variantData,
   });
 
   if (result.success) {
