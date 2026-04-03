@@ -2,10 +2,8 @@
 
 import { useState, FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -31,9 +29,9 @@ export default function LoginPage() {
       }
 
       if (data.user?.isAdmin) {
-        router.push("/admin/dashboard");
+        window.location.href = "/admin/dashboard";
       } else {
-        router.push("/panel/dashboard");
+        window.location.href = "/panel/dashboard";
       }
     } catch {
       setError("Bir hata olustu. Lutfen tekrar deneyin.");
