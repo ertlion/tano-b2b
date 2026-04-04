@@ -1,8 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { orders } from "@/lib/schema";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { orders, masterVariants, masterProducts } from "@/lib/schema";
+import { eq, and, sql, desc, inArray } from "drizzle-orm";
+
+interface RawOrderItem {
+  masterVariantId?: number;
+  title?: string;
+  productName?: string;
+  sku?: string;
+  barcode?: string;
+  size?: string;
+  color?: string;
+  quantity?: number;
+  unitPrice?: number;
+}
+
+async function enrichOrderItems(items: unknown) {
+  if (!Array.isArray(items)) return [];
+  const rawItems = items as RawOrderItem[];
+  const variantIds = rawItems
+    .map((i) => i.masterVariantId)
+    .filter((id): id is number => typeof id === "number" && id > 0);
+
+  let variantMap = new Map<number, { color: string | null; size: string; sku: string; barcode: string; productName: string | null; productImages: string[] | null }>();
+
+  if (variantIds.length > 0) {
+    const variants = await db
+      .select({
+        id: masterVariants.id,
+        color: masterVariants.color,
+        size: masterVariants.size,
+        sku: masterVariants.sku,
+        barcode: masterVariants.barcode,
+        productName: masterProducts.name,
+        productImages: masterProducts.images,
+      })
+      .from(masterVariants)
+      .leftJoin(masterProducts, eq(masterVariants.masterProductId, masterProducts.id))
+      .where(inArray(masterVariants.id, variantIds));
+    variantMap = new Map(variants.map((v) => [v.id, v]));
+  }
+
+  return rawItems.map((item) => {
+    const variant = item.masterVariantId ? variantMap.get(item.masterVariantId) : undefined;
+    const images = variant?.productImages;
+    const firstImage = Array.isArray(images) && images.length > 0 ? images[0] : null;
+    return {
+      productName: variant?.productName || String(item.title || item.productName || "-"),
+      productImage: firstImage,
+      color: variant?.color || String(item.color || "-"),
+      size: variant?.size || String(item.size || "-"),
+      sku: variant?.sku || String(item.sku || ""),
+      barcode: variant?.barcode || String(item.barcode || ""),
+      quantity: Number(item.quantity || 0),
+      unitPrice: Number(item.unitPrice || 0),
+    };
+  });
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -54,9 +109,16 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    const enrichedOrders = await Promise.all(
+      orderList.map(async (order) => {
+        const enrichedItems = await enrichOrderItems(order.items);
+        return { ...order, enrichedItems };
+      })
+    );
+
     return NextResponse.json({
       success: true,
-      data: orderList,
+      data: enrichedOrders,
       meta: {
         total,
         page,

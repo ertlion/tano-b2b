@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { orders } from "@/lib/schema";
-import { eq, and } from "drizzle-orm";
+import { orders, masterVariants, masterProducts } from "@/lib/schema";
+import { eq, and, inArray } from "drizzle-orm";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
+}
+
+interface RawOrderItem {
+  masterVariantId?: number;
+  title?: string;
+  productName?: string;
+  sku?: string;
+  barcode?: string;
+  size?: string;
+  color?: string;
+  quantity?: number;
+  unitPrice?: number;
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
@@ -31,7 +43,48 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Sipariş bulunamadı" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, data: order });
+    // Enrich items
+    const rawItems = Array.isArray(order.items) ? (order.items as RawOrderItem[]) : [];
+    const variantIds = rawItems
+      .map((i) => i.masterVariantId)
+      .filter((id): id is number => typeof id === "number" && id > 0);
+
+    let variantMap = new Map<number, { color: string | null; size: string; sku: string; barcode: string; productName: string | null; productImages: string[] | null }>();
+
+    if (variantIds.length > 0) {
+      const variants = await db
+        .select({
+          id: masterVariants.id,
+          color: masterVariants.color,
+          size: masterVariants.size,
+          sku: masterVariants.sku,
+          barcode: masterVariants.barcode,
+          productName: masterProducts.name,
+          productImages: masterProducts.images,
+        })
+        .from(masterVariants)
+        .leftJoin(masterProducts, eq(masterVariants.masterProductId, masterProducts.id))
+        .where(inArray(masterVariants.id, variantIds));
+      variantMap = new Map(variants.map((v) => [v.id, v]));
+    }
+
+    const enrichedItems = rawItems.map((item) => {
+      const variant = item.masterVariantId ? variantMap.get(item.masterVariantId) : undefined;
+      const images = variant?.productImages;
+      const firstImage = Array.isArray(images) && images.length > 0 ? images[0] : null;
+      return {
+        productName: variant?.productName || String(item.title || item.productName || "-"),
+        productImage: firstImage,
+        color: variant?.color || String(item.color || "-"),
+        size: variant?.size || String(item.size || "-"),
+        sku: variant?.sku || String(item.sku || ""),
+        barcode: variant?.barcode || String(item.barcode || ""),
+        quantity: Number(item.quantity || 0),
+        unitPrice: Number(item.unitPrice || 0),
+      };
+    });
+
+    return NextResponse.json({ success: true, data: { ...order, enrichedItems } });
   } catch (error) {
     if (error instanceof Response) {
       return NextResponse.json(

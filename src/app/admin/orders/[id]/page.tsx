@@ -4,13 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
-interface OrderItem {
+interface EnrichedItem {
   productName: string;
-  sku: string;
+  productImage: string | null;
+  color: string;
   size: string;
+  sku: string;
+  barcode: string;
   quantity: number;
   unitPrice: number;
-  totalPrice: number;
 }
 
 interface StatusHistoryEntry {
@@ -45,7 +47,8 @@ interface OrderDetail {
   cargoTrackingUrl: string | null;
   notes: string | null;
   shippingAddress: ShippingAddress | null;
-  items: OrderItem[];
+  items: unknown[];
+  enrichedItems: EnrichedItem[];
   orderStatusHistory: StatusHistoryEntry[];
   tenant: { company: string } | null;
   createdAt: string;
@@ -72,6 +75,21 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "İptal",
 };
 
+function ProductThumb({ src, alt }: { src: string | null; alt: string }) {
+  if (!src) {
+    return (
+      <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
+        <svg className="w-5 h-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      </div>
+    );
+  }
+  return (
+    <img src={src} alt={alt} className="w-10 h-10 rounded object-cover flex-shrink-0" />
+  );
+}
+
 export default function OrderDetailPage() {
   const params = useParams();
   const orderId = params.id as string;
@@ -86,6 +104,11 @@ export default function OrderDetailPage() {
   const [cargoCompany, setCargoCompany] = useState("");
   const [cargoTracking, setCargoTracking] = useState("");
   const [cargoUrl, setCargoUrl] = useState("");
+
+  // Cancel modal state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelling, setCancelling] = useState(false);
 
   async function loadOrder() {
     try {
@@ -145,6 +168,32 @@ export default function OrderDetailPage() {
     }
   }
 
+  async function handleCancel() {
+    if (!cancelReason.trim()) return;
+    setCancelling(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "cancelled", note: cancelReason.trim() }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setError(d.error || "İptal işlemi başarısız");
+        return;
+      }
+      setShowCancelModal(false);
+      setCancelReason("");
+      setSuccess("Sipariş iptal edildi");
+      await loadOrder();
+      setTimeout(() => setSuccess(""), 3000);
+    } catch {
+      setError("Bir hata oluştu");
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -162,7 +211,7 @@ export default function OrderDetailPage() {
     return (
       <div className="space-y-6">
         <Link href="/admin/orders" className="text-blue-600 hover:text-blue-700 text-sm">
-          &larr; Siparişlere Don
+          &larr; Siparişlere Dön
         </Link>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">{error}</div>
       </div>
@@ -171,16 +220,13 @@ export default function OrderDetailPage() {
 
   if (!order) return null;
 
-  const rawItems = (Array.isArray(order.items) ? order.items : []) as unknown as Record<string, unknown>[];
-  const items: OrderItem[] = rawItems.map((item) => ({
-    productName: String(item.title || item.productName || "-"),
-    sku: String(item.sku || ""),
-    size: String(item.size || "-"),
-    quantity: Number(item.quantity || 0),
-    unitPrice: Number(item.unitPrice || 0),
-    totalPrice: Number(item.unitPrice || 0) * Number(item.quantity || 0),
-  }));
+  const items = order.enrichedItems || [];
   const address = order.shippingAddress;
+
+  // Find cancellation reason from status history
+  const cancelEntry = order.orderStatusHistory.find(
+    (e) => e.toStatus === "cancelled" && e.note
+  );
 
   return (
     <div className="space-y-6">
@@ -261,6 +307,16 @@ export default function OrderDetailPage() {
                 )}
               </div>
             )}
+
+            {/* Cancellation reason */}
+            {order.status === "cancelled" && cancelEntry && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-xs font-medium text-red-700 mb-1">İptal Nedeni</p>
+                  <p className="text-sm text-red-600">{cancelEntry.note}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Items */}
@@ -276,8 +332,8 @@ export default function OrderDetailPage() {
                   <thead>
                     <tr className="border-b border-gray-100">
                       <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Ürün</th>
+                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Renk / Beden</th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">SKU</th>
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Beden</th>
                       <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Adet</th>
                       <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Birim Fiyat</th>
                       <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Toplam</th>
@@ -286,15 +342,20 @@ export default function OrderDetailPage() {
                   <tbody className="divide-y divide-gray-100">
                     {items.map((item, i) => (
                       <tr key={i} className="hover:bg-gray-50">
-                        <td className="px-6 py-3 text-gray-900">{item.productName}</td>
+                        <td className="px-6 py-3">
+                          <div className="flex items-center gap-3">
+                            <ProductThumb src={item.productImage} alt={item.productName} />
+                            <span className="text-gray-900">{item.productName}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-3 text-gray-600">{item.color} / {item.size}</td>
                         <td className="px-6 py-3 text-gray-500 font-mono text-xs">{item.sku}</td>
-                        <td className="px-6 py-3 text-gray-600">{item.size}</td>
                         <td className="px-6 py-3 text-center text-gray-900">{item.quantity}</td>
                         <td className="px-6 py-3 text-right text-gray-600">
                           {Number(item.unitPrice).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} TL
                         </td>
                         <td className="px-6 py-3 text-right text-gray-900 font-medium">
-                          {Number(item.totalPrice).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} TL
+                          {(item.quantity * item.unitPrice).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} TL
                         </td>
                       </tr>
                     ))}
@@ -321,8 +382,35 @@ export default function OrderDetailPage() {
           )}
         </div>
 
-        {/* Sidebar: Status Update + History */}
+        {/* Sidebar */}
         <div className="space-y-6">
+          {/* Cargo & Actions */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">İşlemler</h2>
+            <div className="space-y-2">
+              <button
+                onClick={() => window.print()}
+                className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-100 text-center transition-colors"
+              >
+                Kargo Etiketi Yazdır
+              </button>
+              <button
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-100 text-center transition-colors"
+              >
+                Kargo Etiketi Görüntüle
+              </button>
+              {order.status !== "cancelled" && order.status !== "delivered" && (
+                <button
+                  onClick={() => setShowCancelModal(true)}
+                  className="w-full px-3 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 text-center transition-colors"
+                >
+                  Siparişi İptal Et
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Status Update */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Durum Güncelle</h2>
@@ -340,17 +428,17 @@ export default function OrderDetailPage() {
               {newStatus === "shipped" && (
                 <div className="space-y-3 pt-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Kargo Firmasi</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Kargo Firması</label>
                     <input
                       type="text"
                       value={cargoCompany}
                       onChange={(e) => setCargoCompany(e.target.value)}
-                      placeholder="Ornek: Aras Kargo"
+                      placeholder="Örnek: Aras Kargo"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Takip Numarasi</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Takip Numarası</label>
                     <input
                       type="text"
                       value={cargoTracking}
@@ -383,7 +471,7 @@ export default function OrderDetailPage() {
 
           {/* Status History */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Durum Gecmisi</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Durum Geçmişi</h2>
 
             {order.orderStatusHistory.length === 0 ? (
               <p className="text-sm text-gray-500">Henüz durum değişikliği yok.</p>
@@ -416,6 +504,40 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Cancel Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setShowCancelModal(false); setCancelReason(""); }}>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Siparişi İptal Et</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Bu siparişi iptal etmek istediğinize emin misiniz? Lütfen iptal nedenini yazın.
+            </p>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="İptal nedeni..."
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+            />
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => { setShowCancelModal(false); setCancelReason(""); }}
+                className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Vazgeç
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={cancelling || !cancelReason.trim()}
+                className="px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-lg transition-colors"
+              >
+                {cancelling ? "İptal Ediliyor..." : "İptal Et"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

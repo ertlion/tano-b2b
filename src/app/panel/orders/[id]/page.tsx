@@ -4,13 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
-interface OrderItem {
+interface EnrichedItem {
   productName: string;
-  sku: string;
+  productImage: string | null;
+  color: string;
   size: string;
+  sku: string;
+  barcode: string;
   quantity: number;
   unitPrice: number;
-  totalPrice: number;
 }
 
 interface StatusHistoryEntry {
@@ -45,7 +47,8 @@ interface OrderDetail {
   cargoTrackingUrl: string | null;
   notes: string | null;
   shippingAddress: ShippingAddress | null;
-  items: OrderItem[];
+  items: unknown[];
+  enrichedItems: EnrichedItem[];
   orderStatusHistory: StatusHistoryEntry[];
   createdAt: string;
   updatedAt: string;
@@ -68,6 +71,21 @@ const STATUS_LABEL: Record<string, string> = {
   delivered: "Teslim Edildi",
   cancelled: "İptal",
 };
+
+function ProductThumb({ src, alt }: { src: string | null; alt: string }) {
+  if (!src) {
+    return (
+      <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
+        <svg className="w-5 h-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      </div>
+    );
+  }
+  return (
+    <img src={src} alt={alt} className="w-10 h-10 rounded object-cover flex-shrink-0" />
+  );
+}
 
 export default function PanelOrderDetailPage() {
   const params = useParams();
@@ -110,7 +128,7 @@ export default function PanelOrderDetailPage() {
     return (
       <div className="space-y-6">
         <Link href="/panel/orders" className="text-blue-600 hover:text-blue-700 text-sm">
-          &larr; Siparişlere Don
+          &larr; Siparişlere Dön
         </Link>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">{error}</div>
       </div>
@@ -119,16 +137,13 @@ export default function PanelOrderDetailPage() {
 
   if (!order) return null;
 
-  const rawItems = (Array.isArray(order.items) ? order.items : []) as unknown as Record<string, unknown>[];
-  const items = rawItems.map((item) => ({
-    productName: String(item.title || item.productName || "-"),
-    sku: String(item.sku || ""),
-    size: String(item.size || "-"),
-    quantity: Number(item.quantity || 0),
-    unitPrice: Number(item.unitPrice || 0),
-    totalPrice: Number(item.unitPrice || 0) * Number(item.quantity || 0),
-  }));
+  const items = order.enrichedItems || [];
   const address = order.shippingAddress;
+
+  // Find cancellation reason from status history
+  const cancelEntry = order.orderStatusHistory.find(
+    (e) => e.toStatus === "cancelled" && e.note
+  );
 
   return (
     <div className="space-y-6">
@@ -224,6 +239,16 @@ export default function PanelOrderDetailPage() {
                 </div>
               </div>
             )}
+
+            {/* Cancellation reason */}
+            {order.status === "cancelled" && cancelEntry && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-xs font-medium text-red-700 mb-1">İptal Nedeni</p>
+                  <p className="text-sm text-red-600">{cancelEntry.note}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Items */}
@@ -241,8 +266,8 @@ export default function PanelOrderDetailPage() {
                   <thead>
                     <tr className="border-b border-gray-100">
                       <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Ürün</th>
+                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Renk / Beden</th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">SKU</th>
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Beden</th>
                       <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Adet</th>
                       <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Birim Fiyat</th>
                       <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Toplam</th>
@@ -251,15 +276,20 @@ export default function PanelOrderDetailPage() {
                   <tbody className="divide-y divide-gray-100">
                     {items.map((item, i) => (
                       <tr key={i} className="hover:bg-gray-50">
-                        <td className="px-6 py-3 text-gray-900">{item.productName}</td>
+                        <td className="px-6 py-3">
+                          <div className="flex items-center gap-3">
+                            <ProductThumb src={item.productImage} alt={item.productName} />
+                            <span className="text-gray-900">{item.productName}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-3 text-gray-600">{item.color} / {item.size}</td>
                         <td className="px-6 py-3 text-gray-500 font-mono text-xs">{item.sku}</td>
-                        <td className="px-6 py-3 text-gray-600">{item.size}</td>
                         <td className="px-6 py-3 text-center text-gray-900">{item.quantity}</td>
                         <td className="px-6 py-3 text-right text-gray-600">
                           {Number(item.unitPrice).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} TL
                         </td>
                         <td className="px-6 py-3 text-right text-gray-900 font-medium">
-                          {Number(item.totalPrice).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} TL
+                          {(item.quantity * item.unitPrice).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} TL
                         </td>
                       </tr>
                     ))}
@@ -306,7 +336,7 @@ export default function PanelOrderDetailPage() {
 
           {/* Status History */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Durum Gecmisi</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Durum Geçmişi</h2>
 
             {order.orderStatusHistory.length === 0 ? (
               <p className="text-sm text-gray-500">Henüz durum değişikliği yok.</p>
