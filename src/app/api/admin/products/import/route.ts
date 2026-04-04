@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
         updatedProducts: result.updatedProducts,
         totalVariants: result.totalVariants,
         stockChangesCount: result.stockChanges.length,
+        stockChanges: result.stockChanges.slice(0, 100),
         errors: result.errors,
       },
     });

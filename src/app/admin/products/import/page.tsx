@@ -208,18 +208,22 @@ export default function ImportPage() {
         <div className="space-y-4">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Import Sonucu</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="bg-green-50 rounded-lg p-4">
                 <p className="text-sm text-green-600">Yeni Ürün</p>
                 <p className="text-2xl font-bold text-green-700">{result.newProducts}</p>
               </div>
               <div className="bg-blue-50 rounded-lg p-4">
-                <p className="text-sm text-blue-600">Güncellenen Ürün</p>
+                <p className="text-sm text-blue-600">Güncellenen</p>
                 <p className="text-2xl font-bold text-blue-700">{result.updatedProducts}</p>
               </div>
               <div className="bg-purple-50 rounded-lg p-4">
                 <p className="text-sm text-purple-600">Toplam Varyant</p>
                 <p className="text-2xl font-bold text-purple-700">{result.totalVariants}</p>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-4">
+                <p className="text-sm text-orange-600">Stok Değişimi</p>
+                <p className="text-2xl font-bold text-orange-700">{result.stockChanges?.length || 0}</p>
               </div>
             </div>
 
