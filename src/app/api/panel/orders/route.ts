@@ -47,6 +47,7 @@ async function enrichOrderItems(items: unknown) {
     const images = variant?.productImages;
     const firstImage = Array.isArray(images) && images.length > 0 ? images[0] : null;
     return {
+      masterVariantId: item.masterVariantId || null,
       productName: variant?.productName || String(item.title || item.productName || "-"),
       productImage: firstImage,
       color: variant?.color || String(item.color || "-"),

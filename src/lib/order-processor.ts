@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { orders, masterVariants, masterProducts, stockMovements } from "./schema";
+import { orders, masterVariants, masterProducts, stockMovements, returns } from "./schema";
 import { eq, and } from "drizzle-orm";
 import { syncAllTenantsStock } from "./sync-engine";
 
@@ -86,36 +86,60 @@ export async function processIncomingOrder(order: IncomingOrder): Promise<Proces
       return { success: false, error: "No matching variants found for any line item" };
     }
 
-    // 3. Decrease stock and log movements
+    // 3. Check return history for matched variants
+    const returnWarnings: string[] = [];
     for (const item of processedItems) {
-      const currentVariant = await db.query.masterVariants.findFirst({
-        where: eq(masterVariants.id, item.masterVariantId),
+      const returnRecord = await db.query.returns.findFirst({
+        where: and(
+          eq(returns.tenantId, order.tenantId),
+          eq(returns.masterVariantId, item.masterVariantId)
+        ),
       });
-
-      if (!currentVariant) continue;
-
-      const previousStock = currentVariant.stockQuantity;
-      const newStock = Math.max(0, previousStock - item.quantity);
-
-      await db
-        .update(masterVariants)
-        .set({
-          stockQuantity: newStock,
-          updatedAt: new Date(),
-        })
-        .where(eq(masterVariants.id, item.masterVariantId));
-
-      await db.insert(stockMovements).values({
-        masterVariantId: item.masterVariantId,
-        type: "order",
-        quantity: -item.quantity,
-        previousStock,
-        newStock,
-        reference: `${order.marketplace}#${order.orderNumber}`,
-      });
+      if (returnRecord) {
+        returnWarnings.push(
+          `Iade gecmisi: ${item.title} - ${item.size}`
+        );
+      }
     }
 
-    // 4. Create order record
+    const requiresReview = returnWarnings.length > 0;
+
+    // 4. If no return history, decrease stock normally
+    if (!requiresReview) {
+      for (const item of processedItems) {
+        const currentVariant = await db.query.masterVariants.findFirst({
+          where: eq(masterVariants.id, item.masterVariantId),
+        });
+
+        if (!currentVariant) continue;
+
+        const previousStock = currentVariant.stockQuantity;
+        const newStock = Math.max(0, previousStock - item.quantity);
+
+        await db
+          .update(masterVariants)
+          .set({
+            stockQuantity: newStock,
+            updatedAt: new Date(),
+          })
+          .where(eq(masterVariants.id, item.masterVariantId));
+
+        await db.insert(stockMovements).values({
+          masterVariantId: item.masterVariantId,
+          type: "order",
+          quantity: -item.quantity,
+          previousStock,
+          newStock,
+          reference: `${order.marketplace}#${order.orderNumber}`,
+        });
+      }
+    }
+
+    // 5. Create order record
+    const orderNotes = requiresReview
+      ? `[REVIEW GEREKLI] ${returnWarnings.join("; ")}`
+      : null;
+
     const [created] = await db
       .insert(orders)
       .values({
@@ -137,11 +161,12 @@ export async function processIncomingOrder(order: IncomingOrder): Promise<Proces
         })),
         totalAmount: String(order.totalAmount),
         currency: order.currency ?? "TRY",
-        status: "new",
+        status: requiresReview ? "pending_review" : "new",
+        notes: orderNotes,
       })
       .returning({ id: orders.id });
 
-    // 5. Fire-and-forget stock sync to all tenants
+    // 6. Fire-and-forget stock sync to all tenants
     syncAllTenantsStock().catch((err) => {
       console.error("[ORDER-PROCESSOR] syncAllTenantsStock failed:", err);
     });

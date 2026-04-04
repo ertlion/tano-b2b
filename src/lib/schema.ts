@@ -37,6 +37,7 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
   orders: many(orders),
   syncLogs: many(syncLogs),
   notifications: many(notifications),
+  returns: many(returns),
 }));
 
 // ─── SETTINGS ──────────────────────────────────────────────
@@ -235,6 +236,48 @@ export const syncLogsRelations = relations(syncLogs, ({ one }) => ({
   tenant: one(tenants, {
     fields: [syncLogs.tenantId],
     references: [tenants.id],
+  }),
+}));
+
+// ─── RETURNS (İADE) ───────────────────────────────────────
+
+export const returns = pgTable("returns", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  orderId: integer("order_id")
+    .references(() => orders.id),
+  masterVariantId: integer("master_variant_id")
+    .notNull()
+    .references(() => masterVariants.id),
+  masterProductId: integer("master_product_id")
+    .notNull()
+    .references(() => masterProducts.id),
+  quantity: integer("quantity").notNull().default(1),
+  reason: text("reason"),
+  status: varchar("status", { length: 20 }).default("pending").notNull(), // pending, approved, rejected
+  adminNote: text("admin_note"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const returnsRelations = relations(returns, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [returns.tenantId],
+    references: [tenants.id],
+  }),
+  order: one(orders, {
+    fields: [returns.orderId],
+    references: [orders.id],
+  }),
+  masterVariant: one(masterVariants, {
+    fields: [returns.masterVariantId],
+    references: [masterVariants.id],
+  }),
+  masterProduct: one(masterProducts, {
+    fields: [returns.masterProductId],
+    references: [masterProducts.id],
   }),
 }));
 

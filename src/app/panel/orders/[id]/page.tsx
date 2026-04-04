@@ -61,15 +61,17 @@ const STATUS_BADGE: Record<string, string> = {
   shipped: "bg-purple-100 text-purple-700",
   delivered: "bg-green-100 text-green-700",
   cancelled: "bg-red-100 text-red-700",
+  pending_review: "bg-orange-100 text-orange-700",
 };
 
 const STATUS_LABEL: Record<string, string> = {
   new: "Yeni",
-  processing: "İşleniyor",
-  preparing: "Hazırlanıyor",
+  processing: "Isleniyor",
+  preparing: "Hazirlaniyor",
   shipped: "Kargoda",
   delivered: "Teslim Edildi",
-  cancelled: "İptal",
+  cancelled: "Iptal",
+  pending_review: "Onay Bekliyor",
 };
 
 function ProductThumb({ src, alt }: { src: string | null; alt: string }) {
@@ -94,6 +96,7 @@ export default function PanelOrderDetailPage() {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   useEffect(() => {
     async function loadOrder() {
@@ -110,6 +113,26 @@ export default function PanelOrderDetailPage() {
     }
     loadOrder();
   }, [orderId]);
+
+  async function handleOrderAction(action: "confirm" | "reject") {
+    if (!order) return;
+    setConfirmLoading(true);
+    try {
+      const res = await fetch(`/api/panel/orders/${orderId}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setOrder({ ...order, status: json.status === "cancelled" ? "cancelled" : "processing" });
+      }
+    } catch {
+      // ignore
+    } finally {
+      setConfirmLoading(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -161,6 +184,39 @@ export default function PanelOrderDetailPage() {
           </p>
         </div>
       </div>
+
+      {/* Pending Review Warning */}
+      {order.status === "pending_review" && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <svg className="w-6 h-6 text-orange-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-orange-800">Bu sipariste daha once iade aldiginiz urunler var. Lutfen kontrol edin.</h3>
+              {order.notes && order.notes.includes("[REVIEW GEREKLI]") && (
+                <p className="text-xs text-orange-700 mt-1">{order.notes.replace("[REVIEW GEREKLI] ", "")}</p>
+              )}
+              <div className="flex items-center gap-3 mt-3">
+                <button
+                  onClick={() => handleOrderAction("confirm")}
+                  disabled={confirmLoading}
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                >
+                  {confirmLoading ? "Isleniyor..." : "Onayla ve Stok Dus"}
+                </button>
+                <button
+                  onClick={() => handleOrderAction("reject")}
+                  disabled={confirmLoading}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                >
+                  Reddet
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content */}

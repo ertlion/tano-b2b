@@ -35,15 +35,17 @@ interface OrdersResponse {
 const STATUS_OPTIONS = [
   { value: "", label: "Tum Durumlar" },
   { value: "new", label: "Yeni" },
-  { value: "processing", label: "İşleniyor" },
-  { value: "preparing", label: "Hazırlanıyor" },
+  { value: "pending_review", label: "Onay Bekliyor" },
+  { value: "processing", label: "Isleniyor" },
+  { value: "preparing", label: "Hazirlaniyor" },
   { value: "shipped", label: "Kargoda" },
   { value: "delivered", label: "Teslim Edildi" },
-  { value: "cancelled", label: "İptal" },
+  { value: "cancelled", label: "Iptal" },
 ];
 
 const STATUS_BADGE: Record<string, string> = {
   new: "bg-blue-100 text-blue-700",
+  pending_review: "bg-orange-100 text-orange-700",
   processing: "bg-blue-100 text-blue-700",
   preparing: "bg-yellow-100 text-yellow-700",
   shipped: "bg-purple-100 text-purple-700",
@@ -53,11 +55,12 @@ const STATUS_BADGE: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   new: "Yeni",
-  processing: "İşleniyor",
-  preparing: "Hazırlanıyor",
+  pending_review: "Onay Bekliyor",
+  processing: "Isleniyor",
+  preparing: "Hazirlaniyor",
   shipped: "Kargoda",
   delivered: "Teslim Edildi",
-  cancelled: "İptal",
+  cancelled: "Iptal",
 };
 
 function ProductThumb({ src, alt }: { src: string | null; alt: string }) {
