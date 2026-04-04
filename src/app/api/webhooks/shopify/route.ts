@@ -69,24 +69,36 @@ export async function POST(request: NextRequest) {
 
     // 3. Parse Shopify order into IncomingOrder
     const shippingAddr = payload.shipping_address ?? {};
+    const billingAddr = payload.billing_address ?? {};
+    const customer = payload.customer ?? {};
+
+    // Build customer name from multiple sources
+    const customerName =
+      shippingAddr.name ||
+      billingAddr.name ||
+      [customer.first_name, customer.last_name].filter(Boolean).join(" ") ||
+      payload.contact_email ||
+      payload.email ||
+      "Bilinmeyen Müşteri";
+
     const incomingOrder: IncomingOrder = {
       tenantId,
       marketplace: "shopify",
       externalOrderId: String(payload.id),
-      orderNumber: String(payload.order_number ?? payload.id),
-      customerName: shippingAddr.name ?? payload.email ?? "Unknown",
-      customerEmail: payload.email ?? undefined,
-      customerPhone: shippingAddr.phone ?? undefined,
-      shippingAddress: shippingAddr,
+      orderNumber: String(payload.order_number ?? payload.name ?? payload.id),
+      customerName,
+      customerEmail: payload.contact_email ?? payload.email ?? customer.email ?? undefined,
+      customerPhone: shippingAddr.phone ?? billingAddr.phone ?? customer.phone ?? undefined,
+      shippingAddress: shippingAddr.address1 ? shippingAddr : billingAddr.address1 ? billingAddr : undefined,
       items: (payload.line_items ?? []).map((li: Record<string, unknown>) => ({
         sku: String(li.sku ?? ""),
         barcode: li.barcode ? String(li.barcode) : undefined,
         quantity: Number(li.quantity ?? 1),
         unitPrice: Number(li.price ?? 0),
-        title: String(li.title ?? ""),
+        title: String(li.title ?? "") + (li.variant_title ? ` - ${li.variant_title}` : ""),
         size: li.variant_title ? String(li.variant_title) : undefined,
       })),
-      totalAmount: Number(payload.total_price ?? 0),
+      totalAmount: Number(payload.total_price ?? payload.subtotal_price ?? 0),
       currency: payload.currency ?? "TRY",
     };
 

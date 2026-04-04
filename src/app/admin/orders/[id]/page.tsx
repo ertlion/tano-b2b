@@ -171,7 +171,15 @@ export default function OrderDetailPage() {
 
   if (!order) return null;
 
-  const items = Array.isArray(order.items) ? order.items : [];
+  const rawItems = (Array.isArray(order.items) ? order.items : []) as unknown as Record<string, unknown>[];
+  const items: OrderItem[] = rawItems.map((item) => ({
+    productName: String(item.title || item.productName || "-"),
+    sku: String(item.sku || ""),
+    size: String(item.size || "-"),
+    quantity: Number(item.quantity || 0),
+    unitPrice: Number(item.unitPrice || 0),
+    totalPrice: Number(item.unitPrice || 0) * Number(item.quantity || 0),
+  }));
   const address = order.shippingAddress;
 
   return (
