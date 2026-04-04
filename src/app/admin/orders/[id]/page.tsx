@@ -57,6 +57,15 @@ interface OrderDetail {
 
 const ALL_STATUSES = ["new", "processing", "preparing", "shipped", "delivered", "cancelled"];
 
+const CARGO_COMPANIES = [
+  { value: "yurtici", label: "Yurtici Kargo" },
+  { value: "aras", label: "Aras Kargo" },
+  { value: "mng", label: "MNG Kargo" },
+  { value: "surat", label: "Surat Kargo" },
+  { value: "ptt", label: "PTT Kargo" },
+  { value: "diger", label: "Diger" },
+];
+
 const STATUS_BADGE: Record<string, string> = {
   new: "bg-blue-100 text-blue-700",
   processing: "bg-blue-100 text-blue-700",
@@ -293,7 +302,7 @@ export default function OrderDetailPage() {
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <p className="text-xs text-gray-500 mb-1">Kargo Bilgileri</p>
                 <p className="text-sm text-gray-900">
-                  {order.cargoCompany} - {order.cargoTrackingNumber}
+                  {CARGO_COMPANIES.find((c) => c.value === order.cargoCompany)?.label || order.cargoCompany} - {order.cargoTrackingNumber}
                 </p>
                 {order.cargoTrackingUrl && (
                   <a
@@ -428,14 +437,19 @@ export default function OrderDetailPage() {
               {newStatus === "shipped" && (
                 <div className="space-y-3 pt-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Kargo Firması</label>
-                    <input
-                      type="text"
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Kargo Firmasi</label>
+                    <select
                       value={cargoCompany}
                       onChange={(e) => setCargoCompany(e.target.value)}
-                      placeholder="Örnek: Aras Kargo"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                    >
+                      <option value="">Seciniz</option>
+                      {CARGO_COMPANIES.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Takip Numarası</label>

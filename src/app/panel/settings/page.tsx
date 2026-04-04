@@ -16,6 +16,25 @@ interface SettingsData {
   settings: Record<string, string>;
 }
 
+interface CargoProvider {
+  value: string;
+  label: string;
+}
+
+interface CargoSettingsKey {
+  key: string;
+  label: string;
+  type: "text" | "password";
+}
+
+interface CargoSettingsData {
+  provider: string;
+  providerDisplayName: string;
+  settingsKeys: CargoSettingsKey[];
+  settings: Record<string, string>;
+  availableProviders: CargoProvider[];
+}
+
 export default function PanelSettingsPage() {
   const [data, setData] = useState<SettingsData | null>(null);
   const [credentials, setCredentials] = useState<Record<string, string>>({});
@@ -27,6 +46,14 @@ export default function PanelSettingsPage() {
   const [success, setSuccess] = useState("");
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [webhookResult, setWebhookResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  // Cargo state
+  const [cargoData, setCargoData] = useState<CargoSettingsData | null>(null);
+  const [cargoProvider, setCargoProvider] = useState("");
+  const [cargoCredentials, setCargoCredentials] = useState<Record<string, string>>({});
+  const [cargoSaving, setCargoSaving] = useState(false);
+  const [cargoError, setCargoError] = useState("");
+  const [cargoSuccess, setCargoSuccess] = useState("");
 
   useEffect(() => {
     async function loadSettings() {
@@ -46,6 +73,23 @@ export default function PanelSettingsPage() {
       }
     }
     loadSettings();
+
+    async function loadCargoSettings() {
+      try {
+        const res = await fetch("/api/panel/cargo/settings");
+        if (!res.ok) throw new Error();
+        const json = await res.json();
+        const d = json.data as CargoSettingsData;
+        if (d) {
+          setCargoData(d);
+          setCargoProvider(d.provider || "");
+          setCargoCredentials(d.settings || {});
+        }
+      } catch {
+        // Default empty
+      }
+    }
+    loadCargoSettings();
   }, []);
 
   function handleChange(key: string, value: string) {
@@ -78,6 +122,57 @@ export default function PanelSettingsPage() {
       setSaving(false);
     }
   }
+
+  function handleCargoChange(key: string, value: string) {
+    setCargoCredentials((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function handleCargoSave() {
+    if (!cargoProvider) return;
+    setCargoSaving(true);
+    setCargoError("");
+    setCargoSuccess("");
+
+    try {
+      const res = await fetch("/api/panel/cargo/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: cargoProvider,
+          settings: cargoCredentials,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "Kayit basarisiz");
+      }
+
+      setCargoSuccess("Kargo ayarlari kaydedildi");
+      setTimeout(() => setCargoSuccess(""), 3000);
+
+      // Reload cargo settings to get updated fields
+      const reloadRes = await fetch("/api/panel/cargo/settings");
+      if (reloadRes.ok) {
+        const reloadJson = await reloadRes.json();
+        const d = reloadJson.data as CargoSettingsData;
+        if (d) {
+          setCargoData(d);
+          setCargoCredentials(d.settings || {});
+        }
+      }
+    } catch (err) {
+      setCargoError(err instanceof Error ? err.message : "Bir hata olustu");
+    } finally {
+      setCargoSaving(false);
+    }
+  }
+
+  // Get cargo settings keys for selected provider
+  const cargoSettingsKeys: CargoSettingsKey[] =
+    cargoProvider && cargoData?.provider === cargoProvider
+      ? cargoData.settingsKeys
+      : [];
 
   async function handleTest() {
     if (!data) return;
@@ -255,6 +350,81 @@ export default function PanelSettingsPage() {
             <p className="text-xs text-gray-400">Lütfen yönetici ile iletişime geçin.</p>
           </div>
         )}
+      </div>
+      {/* Cargo Settings Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Kargo Ayarlari</h2>
+        <p className="text-sm text-gray-500 mb-6">
+          Kargo firmanizi secin ve API bilgilerinizi girin.
+        </p>
+
+        {cargoError && (
+          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+            {cargoError}
+          </div>
+        )}
+        {cargoSuccess && (
+          <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
+            {cargoSuccess}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Kargo Firmasi
+            </label>
+            <select
+              value={cargoProvider}
+              onChange={(e) => {
+                setCargoProvider(e.target.value);
+                setCargoCredentials({});
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+            >
+              <option value="">Seciniz</option>
+              {cargoData?.availableProviders.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {cargoProvider && cargoSettingsKeys.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {cargoSettingsKeys.map((field) => (
+                <div key={field.key}>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {field.label}
+                  </label>
+                  <input
+                    type={field.type}
+                    value={cargoCredentials[field.key] || ""}
+                    onChange={(e) => handleCargoChange(field.key, e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {cargoProvider && cargoProvider !== cargoData?.provider && (
+            <p className="text-xs text-amber-600">
+              Yeni kargo firmasini sectiginizde ayarlari kaydetmeniz gerekiyor.
+            </p>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={handleCargoSave}
+              disabled={cargoSaving || !cargoProvider}
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg text-sm transition-colors"
+            >
+              {cargoSaving ? "Kaydediliyor..." : "Kargo Ayarlarini Kaydet"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import {
 import { eq } from "drizzle-orm";
 import { sendOrderStatusEmail } from "@/lib/mailer";
 import { syncAllTenantsStock } from "@/lib/sync-engine";
+import { getCargoTrackingUrl, resolveProviderName } from "@/lib/cargo/registry";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -85,7 +86,19 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (newStatus === "shipped") {
       if (cargoCompany) updateData.cargoCompany = cargoCompany;
       if (cargoTrackingNumber) updateData.cargoTrackingNumber = cargoTrackingNumber;
-      if (cargoTrackingUrl) updateData.cargoTrackingUrl = cargoTrackingUrl;
+
+      // Auto-generate tracking URL if not manually provided
+      if (cargoTrackingUrl) {
+        updateData.cargoTrackingUrl = cargoTrackingUrl;
+      } else if (cargoCompany && cargoTrackingNumber) {
+        const provider = resolveProviderName(cargoCompany);
+        if (provider) {
+          const autoUrl = getCargoTrackingUrl(provider, cargoTrackingNumber);
+          if (autoUrl) {
+            updateData.cargoTrackingUrl = autoUrl;
+          }
+        }
+      }
     }
 
     if (note) updateData.notes = note;
