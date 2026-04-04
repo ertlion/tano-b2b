@@ -86,7 +86,7 @@ export default function OrdersPage() {
   const [page, setPage] = useState(1);
   const limit = 20;
 
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  // All orders expanded by default
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   const [cancelOrderId, setCancelOrderId] = useState<number | null>(null);
   const [cancelReason, setCancelReason] = useState("");
@@ -222,7 +222,7 @@ export default function OrdersPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {data.orders.map((order) => {
-                    const isExpanded = expandedId === order.id;
+                    const isExpanded = true;
                     const items = order.enrichedItems || [];
                     const firstItem = items[0];
                     const itemCount = items.length;
@@ -230,8 +230,7 @@ export default function OrdersPage() {
                     return (
                       <Fragment key={order.id}>
                         <tr
-                          onClick={() => setExpandedId(isExpanded ? null : order.id)}
-                          className={`hover:bg-gray-50 cursor-pointer transition-colors ${isExpanded ? "bg-gray-50" : ""}`}
+                          className="hover:bg-gray-50 transition-colors bg-gray-50"
                         >
                           <td className="px-6 py-3 text-blue-600 font-medium">{order.orderNumber}</td>
                           <td className="px-6 py-3 text-gray-600">{order.tenantCompany}</td>
@@ -260,11 +259,7 @@ export default function OrdersPage() {
                             </span>
                           </td>
                           <td className="px-6 py-3 text-gray-500">{new Date(order.createdAt).toLocaleDateString("tr-TR")}</td>
-                          <td className="px-6 py-3">
-                            <svg className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </td>
+                          <td className="px-6 py-3"></td>
                         </tr>
 
                         {/* Expanded row */}
