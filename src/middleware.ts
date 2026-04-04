@@ -5,57 +5,60 @@ const SESSION_COOKIE = "tano_session";
 const PUBLIC_PATHS = ["/login", "/register"];
 const WEBHOOK_PREFIX = "/api/webhooks/";
 
+function withIframeHeaders(response: NextResponse): NextResponse {
+  response.headers.set(
+    "Content-Security-Policy",
+    "frame-ancestors 'self' https://*.myikas.com https://admin.myikas.com"
+  );
+  response.headers.delete("X-Frame-Options");
+  return response;
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Static files and Next.js internals: pass through
+  // Static files and Next.js internals
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
     pathname.includes(".")
   ) {
-    return NextResponse.next();
+    return withIframeHeaders(NextResponse.next());
   }
 
-  // Webhook endpoints: no auth required (external platforms call these)
+  // Webhook endpoints: no auth
   if (pathname.startsWith(WEBHOOK_PREFIX)) {
-    return NextResponse.next();
+    return withIframeHeaders(NextResponse.next());
   }
 
-  // API routes for admin/panel: let API handlers do their own auth
+  // API routes: let handlers do their own auth
   if (pathname.startsWith("/api/")) {
-    return NextResponse.next();
+    return withIframeHeaders(NextResponse.next());
   }
 
   const hasCookie = request.cookies.has(SESSION_COOKIE);
 
-  // Public pages: if already logged in, redirect to dashboard
+  // Public pages: if logged in, redirect to dashboard
   if (PUBLIC_PATHS.some((p) => pathname === p)) {
     if (hasCookie) {
-      return NextResponse.redirect(new URL("/panel/dashboard", request.url));
+      return withIframeHeaders(NextResponse.redirect(new URL("/panel/dashboard", request.url)));
     }
-    return NextResponse.next();
+    return withIframeHeaders(NextResponse.next());
   }
 
-  // Protected routes: /admin/* and /panel/*
+  // Protected routes
   if (pathname.startsWith("/admin") || pathname.startsWith("/panel")) {
     if (!hasCookie) {
-      return NextResponse.redirect(new URL("/login", request.url));
+      return withIframeHeaders(NextResponse.redirect(new URL("/login", request.url)));
     }
-    return NextResponse.next();
+    return withIframeHeaders(NextResponse.next());
   }
 
-  return NextResponse.next();
+  return withIframeHeaders(NextResponse.next());
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all paths except:
-     * - _next/static
-     * - _next/image
-     * - favicon.ico
-     */
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };
