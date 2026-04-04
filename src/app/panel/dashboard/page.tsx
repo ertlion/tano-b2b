@@ -3,12 +3,23 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+interface SalesPeriod {
+  revenue: number;
+  cost: number;
+  profit: number;
+  orders?: number;
+}
+
 interface DashboardData {
-  stats: {
-    catalogProducts: number;
-    discountRate: number;
-    totalOrders: number;
-    pendingOrders: number;
+  catalogProducts: number;
+  pushedProducts: number;
+  discountRate: number;
+  totalOrders: number;
+  pendingOrders: number;
+  sales: {
+    today: SalesPeriod;
+    month: SalesPeriod;
+    total: SalesPeriod;
   };
   recentOrders: Array<{
     id: number;
@@ -38,44 +49,8 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "İptal",
 };
 
-function StatCard({
-  label,
-  value,
-  suffix,
-  color,
-  icon,
-}: {
-  label: string;
-  value: number | string;
-  suffix?: string;
-  color: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm text-gray-500">{label}</p>
-        <span className="text-gray-300">{icon}</span>
-      </div>
-      <p className={`text-3xl font-bold ${color}`}>
-        {typeof value === "number" ? value.toLocaleString("tr-TR") : value}
-        {suffix && <span className="text-lg font-medium ml-1">{suffix}</span>}
-      </p>
-    </div>
-  );
-}
-
-function SkeletonCards() {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-24 mb-4" />
-          <div className="h-8 bg-gray-200 rounded w-16" />
-        </div>
-      ))}
-    </div>
-  );
+function formatMoney(value: number): string {
+  return value.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export default function PanelDashboardPage() {
@@ -87,18 +62,9 @@ export default function PanelDashboardPage() {
     async function load() {
       try {
         const res = await fetch("/api/panel/dashboard");
-        if (!res.ok) throw new Error("Veri alınamadı");
+        if (!res.ok) throw new Error();
         const json = await res.json();
-        const d = json.data;
-        setData({
-          stats: {
-            catalogProducts: d.catalogProducts ?? 0,
-            discountRate: d.discountRate ?? 0,
-            totalOrders: d.totalOrders ?? 0,
-            pendingOrders: d.pendingOrders ?? 0,
-          },
-          recentOrders: d.recentOrders || [],
-        });
+        setData(json.data);
       } catch {
         setError("Dashboard verileri yüklenemedi");
       } finally {
@@ -112,18 +78,19 @@ export default function PanelDashboardPage() {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <SkeletonCards />
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-40 mb-4" />
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-12 bg-gray-100 rounded mb-2" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-20 mb-3" />
+              <div className="h-7 bg-gray-200 rounded w-16" />
+            </div>
           ))}
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || !data) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
@@ -132,56 +99,115 @@ export default function PanelDashboardPage() {
     );
   }
 
-  if (!data) return null;
-
-  const { stats, recentOrders } = data;
-
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Katalog Ürünleri"
-          value={stats.catalogProducts}
-          color="text-gray-900"
-          icon={
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
-          }
-        />
-        <StatCard
-          label="İskonto Oranı"
-          value={stats.discountRate > 0 ? `%${stats.discountRate}` : "-"}
-          color={stats.discountRate > 0 ? "text-blue-600" : "text-gray-400"}
-          icon={
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-            </svg>
-          }
-        />
-        <StatCard
-          label="Toplam Sipariş"
-          value={stats.totalOrders}
-          color="text-gray-900"
-          icon={
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-          }
-        />
-        <StatCard
-          label="Bekleyen Sipariş"
-          value={stats.pendingOrders}
-          color="text-yellow-600"
-          icon={
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          }
-        />
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <p className="text-xs text-gray-500 mb-1">Aktarılan Ürün</p>
+          <p className="text-2xl font-bold text-gray-900">{data.pushedProducts}</p>
+          <p className="text-xs text-gray-400 mt-1">/ {data.catalogProducts} katalog</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <p className="text-xs text-gray-500 mb-1">İskonto Oranı</p>
+          <p className="text-2xl font-bold text-blue-600">{data.discountRate > 0 ? `%${data.discountRate}` : "-"}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <p className="text-xs text-gray-500 mb-1">Toplam Sipariş</p>
+          <p className="text-2xl font-bold text-gray-900">{data.totalOrders}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <p className="text-xs text-gray-500 mb-1">Bekleyen Sipariş</p>
+          <p className="text-2xl font-bold text-yellow-600">{data.pendingOrders}</p>
+        </div>
+      </div>
+
+      {/* Sales Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Today */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-900">Bugün</h3>
+            {data.sales.today.orders !== undefined && (
+              <span className="text-xs text-gray-400">{data.sales.today.orders} sipariş</span>
+            )}
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-500">Satış</span>
+              <span className="text-sm font-semibold text-gray-900">{formatMoney(data.sales.today.revenue)} ₺</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-500">Maliyet</span>
+              <span className="text-sm font-medium text-red-600">{formatMoney(data.sales.today.cost)} ₺</span>
+            </div>
+            <div className="border-t border-gray-100 pt-2 flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700">Kâr</span>
+              <span className={`text-sm font-bold ${data.sales.today.profit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {formatMoney(data.sales.today.profit)} ₺
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* This Month */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-900">Bu Ay</h3>
+            {data.sales.month.orders !== undefined && (
+              <span className="text-xs text-gray-400">{data.sales.month.orders} sipariş</span>
+            )}
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-500">Satış</span>
+              <span className="text-sm font-semibold text-gray-900">{formatMoney(data.sales.month.revenue)} ₺</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-500">Maliyet</span>
+              <span className="text-sm font-medium text-red-600">{formatMoney(data.sales.month.cost)} ₺</span>
+            </div>
+            <div className="border-t border-gray-100 pt-2 flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700">Kâr</span>
+              <span className={`text-sm font-bold ${data.sales.month.profit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {formatMoney(data.sales.month.profit)} ₺
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Total */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-900">Toplam</h3>
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-500">Satış</span>
+              <span className="text-sm font-semibold text-gray-900">{formatMoney(data.sales.total.revenue)} ₺</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-500">Maliyet</span>
+              <span className="text-sm font-medium text-red-600">{formatMoney(data.sales.total.cost)} ₺</span>
+            </div>
+            <div className="border-t border-gray-100 pt-2 flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700">Kâr</span>
+              <span className={`text-sm font-bold ${data.sales.total.profit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {formatMoney(data.sales.total.profit)} ₺
+              </span>
+            </div>
+            {data.sales.total.revenue > 0 && (
+              <div className="flex justify-between items-center pt-1">
+                <span className="text-xs text-gray-400">Kâr Marjı</span>
+                <span className="text-xs font-medium text-gray-500">
+                  %{((data.sales.total.profit / data.sales.total.revenue) * 100).toFixed(1)}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Recent Orders */}
@@ -193,11 +219,8 @@ export default function PanelDashboardPage() {
           </Link>
         </div>
 
-        {recentOrders.length === 0 ? (
+        {data.recentOrders.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
             <p className="text-sm text-gray-500">Henüz sipariş bulunmuyor.</p>
           </div>
         ) : (
@@ -213,19 +236,16 @@ export default function PanelDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {recentOrders.map((order) => (
+                {data.recentOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-3">
-                      <Link
-                        href={`/panel/orders/${order.id}`}
-                        className="text-blue-600 hover:text-blue-700 font-medium"
-                      >
+                      <Link href={`/panel/orders/${order.id}`} className="text-blue-600 hover:text-blue-700 font-medium">
                         {order.orderNumber}
                       </Link>
                     </td>
                     <td className="px-6 py-3 text-gray-900">{order.customerName}</td>
                     <td className="px-6 py-3 text-right text-gray-900 font-medium">
-                      {Number(order.totalAmount).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} &#8378;
+                      {formatMoney(Number(order.totalAmount))} ₺
                     </td>
                     <td className="px-6 py-3">
                       <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[order.status] || "bg-gray-100 text-gray-700"}`}>
