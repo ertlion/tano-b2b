@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tenants, settings } from "@/lib/schema";
+import { settings } from "@/lib/schema";
 import { eq, and } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
@@ -10,26 +10,22 @@ export async function GET(request: NextRequest) {
     const storeUrl = searchParams.get("storeName") || searchParams.get("store") || searchParams.get("state");
 
     if (!code || !storeUrl) {
-      return new NextResponse(errorPage("Yetkilendirme kodu veya mağaza bilgisi eksik."), {
-        status: 400,
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      });
+      return redirectWithError("Yetkilendirme kodu veya mağaza bilgisi eksik.");
     }
 
     const clientId = process.env.IKAS_APP_CLIENT_ID;
     const clientSecret = process.env.IKAS_APP_CLIENT_SECRET;
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/ikas/callback`;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+    const redirectUri = `${appUrl}/api/auth/ikas/callback`;
 
     if (!clientId || !clientSecret) {
-      return new NextResponse(errorPage("ikas app yapılandırması eksik."), {
-        status: 500,
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      });
+      return redirectWithError("ikas app yapılandırması eksik.");
     }
 
     // Clean store URL
     const cleanStore = storeUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "");
     const baseUrl = cleanStore.includes("myikas.com") ? `https://${cleanStore}` : `https://${cleanStore}.myikas.com`;
+    const storeUrlNormalized = cleanStore.includes("myikas.com") ? cleanStore : `${cleanStore}.myikas.com`;
 
     // Exchange code for access token
     const tokenRes = await fetch(`${baseUrl}/api/admin/oauth/token`, {
@@ -47,10 +43,7 @@ export async function GET(request: NextRequest) {
     if (!tokenRes.ok) {
       const err = await tokenRes.text();
       console.error("[IKAS/CALLBACK] Token exchange failed:", err);
-      return new NextResponse(errorPage(`Token alınamadı: ${tokenRes.status}`), {
-        status: 400,
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      });
+      return redirectWithError("Token alınamadı.");
     }
 
     const tokenData = await tokenRes.json();
@@ -58,16 +51,10 @@ export async function GET(request: NextRequest) {
     const refreshToken = tokenData.refresh_token;
 
     if (!accessToken) {
-      return new NextResponse(errorPage("Access token alınamadı."), {
-        status: 400,
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      });
+      return redirectWithError("Access token alınamadı.");
     }
 
-    // Find or create tenant for this ikas store
-    const storeUrlNormalized = cleanStore.includes("myikas.com") ? cleanStore : `${cleanStore}.myikas.com`;
-
-    // Check if a tenant with this ikas store already exists
+    // Check if this ikas store already has a tenant
     const existingSetting = await db.query.settings.findFirst({
       where: and(
         eq(settings.key, "ikas_store_url"),
@@ -75,132 +62,50 @@ export async function GET(request: NextRequest) {
       ),
     });
 
-    let tenantId: number;
-
     if (existingSetting) {
-      // Update existing tenant's tokens
-      tenantId = existingSetting.tenantId;
-    } else {
-      // Get store info from ikas
-      let storeName = storeUrlNormalized.split(".")[0];
-      try {
-        const shopRes = await fetch("https://api.myikas.com/api/v1/admin/graphql", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({ query: "{ getStore { id name } }" }),
-        });
-        if (shopRes.ok) {
-          const shopData = await shopRes.json();
-          storeName = shopData.data?.getStore?.name || storeName;
-        }
-      } catch {
-        // Use default name
-      }
+      // Existing tenant — update tokens and redirect to login
+      const tenantId = existingSetting.tenantId;
+      await upsertSetting(tenantId, "ikas_access_token", accessToken);
+      if (refreshToken) await upsertSetting(tenantId, "ikas_refresh_token", refreshToken);
 
-      // Create new tenant
-      const [newTenant] = await db
-        .insert(tenants)
-        .values({
-          name: storeName,
-          email: `${storeUrlNormalized.split(".")[0]}@ikas.store`,
-          password: "$ikas-oauth$", // OAuth user, no password login
-          company: storeName,
-          phone: "",
-          marketplace: "ikas",
-          isAdmin: false,
-          isApproved: true,
-          isActive: true,
-        })
-        .returning();
+      console.log(`[IKAS/CALLBACK] Existing tenant ${tenantId} reconnected: ${storeUrlNormalized}`);
 
-      tenantId = newTenant.id;
+      // Redirect to panel (they already have an account)
+      return NextResponse.redirect(`${appUrl}/login?ikas=reconnected`);
     }
 
-    // Save/update ikas credentials
-    const credentialsToSave: Record<string, string> = {
-      ikas_store_url: storeUrlNormalized,
-      ikas_api_key: clientId,
-      ikas_api_secret: clientSecret,
-      ikas_access_token: accessToken,
-    };
+    // New store — save tokens temporarily and redirect to registration
+    // We'll use a temp token in the URL that the register page will use
+    const tempToken = Buffer.from(JSON.stringify({
+      accessToken,
+      refreshToken: refreshToken || "",
+      storeUrl: storeUrlNormalized,
+      clientId,
+      clientSecret,
+      ts: Date.now(),
+    })).toString("base64url");
 
-    if (refreshToken) {
-      credentialsToSave.ikas_refresh_token = refreshToken;
-    }
+    console.log(`[IKAS/CALLBACK] New store, redirecting to register: ${storeUrlNormalized}`);
 
-    for (const [key, value] of Object.entries(credentialsToSave)) {
-      const existing = await db.query.settings.findFirst({
-        where: and(
-          eq(settings.tenantId, tenantId),
-          eq(settings.key, key)
-        ),
-      });
-
-      if (existing) {
-        await db
-          .update(settings)
-          .set({ value })
-          .where(eq(settings.id, existing.id));
-      } else {
-        await db.insert(settings).values({
-          tenantId,
-          key,
-          value,
-        });
-      }
-    }
-
-    console.log(`[IKAS/CALLBACK] Tenant ${tenantId} connected: ${storeUrlNormalized}`);
-
-    // Success page
-    return new NextResponse(successPage(storeName(storeUrlNormalized)), {
-      status: 200,
-      headers: { "Content-Type": "text/html; charset=utf-8" },
-    });
+    return NextResponse.redirect(`${appUrl}/register?ikas_token=${tempToken}`);
   } catch (err) {
     console.error("[IKAS/CALLBACK] Error:", err);
-    return new NextResponse(errorPage("Beklenmeyen bir hata oluştu."), {
-      status: 500,
-      headers: { "Content-Type": "text/html; charset=utf-8" },
-    });
+    return redirectWithError("Beklenmeyen bir hata oluştu.");
   }
 }
 
-function storeName(url: string): string {
-  return url.split(".")[0];
+async function upsertSetting(tenantId: number, key: string, value: string) {
+  const existing = await db.query.settings.findFirst({
+    where: and(eq(settings.tenantId, tenantId), eq(settings.key, key)),
+  });
+  if (existing) {
+    await db.update(settings).set({ value }).where(eq(settings.id, existing.id));
+  } else {
+    await db.insert(settings).values({ tenantId, key, value });
+  }
 }
 
-function successPage(store: string): string {
-  return `<!DOCTYPE html>
-<html lang="tr">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bağlantı Başarılı</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,sans-serif;background:#f9fafb;display:flex;align-items:center;justify-content:center;min-height:100vh}
-.card{background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.1);padding:48px;max-width:480px;text-align:center}
-.icon{width:64px;height:64px;background:#f0fdf4;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:32px}
-h1{color:#166534;font-size:24px;margin-bottom:8px}p{color:#6b7280;font-size:14px;line-height:1.6;margin-bottom:24px}
-.btn{display:inline-block;background:#1f2937;color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:500;font-size:14px}</style></head>
-<body><div class="card">
-<div class="icon">✅</div>
-<h1>Bağlantı Başarılı!</h1>
-<p><strong>${store}</strong> mağazası Tano Atelier B2B platformuna başarıyla bağlandı. Artık ürünleri aktarabilir ve stok senkronizasyonu yapabilirsiniz.</p>
-<a href="${process.env.NEXT_PUBLIC_APP_URL || ""}/panel/dashboard" class="btn">Panele Git</a>
-</div></body></html>`;
-}
-
-function errorPage(message: string): string {
-  return `<!DOCTYPE html>
-<html lang="tr">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bağlantı Hatası</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,sans-serif;background:#f9fafb;display:flex;align-items:center;justify-content:center;min-height:100vh}
-.card{background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.1);padding:48px;max-width:480px;text-align:center}
-.icon{width:64px;height:64px;background:#fef2f2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:32px}
-h1{color:#991b1b;font-size:24px;margin-bottom:8px}p{color:#6b7280;font-size:14px;line-height:1.6}</style></head>
-<body><div class="card">
-<div class="icon">❌</div>
-<h1>Bağlantı Hatası</h1>
-<p>${message}</p>
-</div></body></html>`;
+function redirectWithError(message: string): NextResponse {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+  return NextResponse.redirect(`${appUrl}/register?ikas_error=${encodeURIComponent(message)}`);
 }

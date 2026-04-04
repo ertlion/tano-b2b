@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tenants } from "@/lib/schema";
+import { tenants, settings } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { hashPassword } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, password, company, phone, marketplace } = await request.json();
+    const body = await request.json();
+    const { name, email, password, company, phone, marketplace, ikas_token } = body;
 
     if (!name || !email || !password || !company || !marketplace) {
       return NextResponse.json({ error: "Tüm alanlar gerekli" }, { status: 400 });
@@ -37,6 +38,42 @@ export async function POST(request: NextRequest) {
       isApproved: false,
       isActive: true,
     }).returning({ id: tenants.id });
+
+    // If ikas token provided, save ikas credentials to the new tenant
+    if (ikas_token && marketplace === "ikas") {
+      try {
+        const tokenData = JSON.parse(
+          Buffer.from(ikas_token.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString()
+        );
+
+        // Verify token is recent (max 10 minutes)
+        if (Date.now() - (tokenData.ts || 0) < 10 * 60 * 1000) {
+          const ikasSettings: Record<string, string> = {
+            ikas_store_url: tokenData.storeUrl || "",
+            ikas_api_key: tokenData.clientId || "",
+            ikas_api_secret: tokenData.clientSecret || "",
+            ikas_access_token: tokenData.accessToken || "",
+          };
+
+          if (tokenData.refreshToken) {
+            ikasSettings.ikas_refresh_token = tokenData.refreshToken;
+          }
+
+          for (const [key, value] of Object.entries(ikasSettings)) {
+            if (value) {
+              await db.insert(settings).values({
+                tenantId: created.id,
+                key,
+                value,
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("[REGISTER] Failed to save ikas token:", err);
+        // Don't fail registration, just log
+      }
+    }
 
     return NextResponse.json({
       success: true,
