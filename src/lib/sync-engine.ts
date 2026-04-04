@@ -93,7 +93,13 @@ async function syncTenantStock(
     if (stockUpdates.length === 0) continue;
 
     try {
-      await adapter.updateStock(credentials, listing.externalProductId, stockUpdates);
+      console.log(`[SYNC] Updating stock for tenant ${tenantId}, product ${listing.masterProductId}, ${stockUpdates.length} variants`);
+      const stockResult = await adapter.updateStock(credentials, listing.externalProductId, stockUpdates);
+      if (!stockResult.success) {
+        console.error(`[SYNC] Stock update partial failure:`, stockResult.errors);
+      } else {
+        console.log(`[SYNC] Stock updated: ${stockResult.variantsUpdated} variants`);
+      }
     } catch (err) {
       console.error(`[SYNC] Failed to update stock for tenant ${tenantId}, product ${listing.masterProductId}:`, err);
     }

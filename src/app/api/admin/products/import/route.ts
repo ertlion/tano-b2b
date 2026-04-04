@@ -46,7 +46,13 @@ export async function POST(request: NextRequest) {
     const result = await processExcelImport(buffer, dollarRate);
 
     // Sync stock to all tenant marketplaces (fire-and-forget with logging)
-    syncAllTenantsStock().catch((err) => {
+    console.log(`[IMPORT] Starting stock sync... (${result.stockChanges.length} changes)`);
+    syncAllTenantsStock().then((syncResult) => {
+      console.log(`[IMPORT] Stock sync done: ${syncResult.successCount}/${syncResult.totalTenants} tenants, ${syncResult.errorCount} errors`);
+      if (syncResult.errors.length > 0) {
+        console.error("[IMPORT] Sync errors:", syncResult.errors);
+      }
+    }).catch((err) => {
       console.error("[IMPORT] Stock sync failed after import:", err);
     });
 
