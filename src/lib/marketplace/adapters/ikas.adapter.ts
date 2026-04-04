@@ -15,6 +15,8 @@ interface IkasCredentials extends MarketplaceCredentials {
   ikas_store_url: string;
   ikas_api_key: string;
   ikas_api_secret: string;
+  ikas_access_token?: string;
+  ikas_refresh_token?: string;
 }
 
 interface IkasTokenCache {
@@ -36,6 +38,11 @@ export class IkasAdapter implements MarketplaceAdapter {
   }
 
   private async getToken(creds: IkasCredentials): Promise<string> {
+    // If we have a pre-saved OAuth access token, use it directly
+    if (creds.ikas_access_token) {
+      return creds.ikas_access_token;
+    }
+
     const cacheKey = creds.ikas_api_key;
     const cached = tokenCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) return cached.token;

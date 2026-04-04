@@ -7,46 +7,46 @@ import type { IncomingOrder } from "@/lib/order-processor";
 
 // ─── TENANT LOOKUP ────────────────────────────────────────
 
-async function findTenantByIkas(): Promise<number | null> {
-  // Find a tenant that has ikas credentials configured
-  const result = await db.query.settings.findFirst({
-    where: eq(settings.key, "ikas_api_key"),
+async function findTenantByIkasStore(storeId: string, storeUrl?: string): Promise<number | null> {
+  // Try by store_id first
+  if (storeId) {
+    const byId = await db.query.settings.findFirst({
+      where: and(eq(settings.key, "ikas_store_id"), eq(settings.value, storeId)),
+    });
+    if (byId) {
+      const tenant = await db.query.tenants.findFirst({
+        where: and(eq(tenants.id, byId.tenantId), eq(tenants.isActive, true)),
+      });
+      if (tenant) return tenant.id;
+    }
+  }
+
+  // Try by store URL
+  if (storeUrl) {
+    const cleaned = storeUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+    const byUrl = await db.query.settings.findFirst({
+      where: and(eq(settings.key, "ikas_store_url"), eq(settings.value, cleaned)),
+    });
+    if (byUrl) {
+      const tenant = await db.query.tenants.findFirst({
+        where: and(eq(tenants.id, byUrl.tenantId), eq(tenants.isActive, true)),
+      });
+      if (tenant) return tenant.id;
+    }
+  }
+
+  // Fallback: find any ikas tenant with access token
+  const byToken = await db.query.settings.findFirst({
+    where: eq(settings.key, "ikas_access_token"),
   });
+  if (byToken) {
+    const tenant = await db.query.tenants.findFirst({
+      where: and(eq(tenants.id, byToken.tenantId), eq(tenants.isActive, true)),
+    });
+    if (tenant) return tenant.id;
+  }
 
-  if (!result) return null;
-
-  const tenant = await db.query.tenants.findFirst({
-    where: and(
-      eq(tenants.id, result.tenantId),
-      eq(tenants.isActive, true),
-      eq(tenants.isApproved, true)
-    ),
-  });
-
-  return tenant?.id ?? null;
-}
-
-async function findTenantByIkasStoreId(storeId: string): Promise<number | null> {
-  if (!storeId) return findTenantByIkas();
-
-  const result = await db.query.settings.findFirst({
-    where: and(
-      eq(settings.key, "ikas_store_id"),
-      eq(settings.value, storeId)
-    ),
-  });
-
-  if (!result) return findTenantByIkas();
-
-  const tenant = await db.query.tenants.findFirst({
-    where: and(
-      eq(tenants.id, result.tenantId),
-      eq(tenants.isActive, true),
-      eq(tenants.isApproved, true)
-    ),
-  });
-
-  return tenant?.id ?? null;
+  return null;
 }
 
 // ─── POST HANDLER ─────────────────────────────────────────
@@ -56,8 +56,9 @@ export async function POST(request: NextRequest) {
     const payload = await request.json();
 
     // 1. Find tenant
-    const storeId = payload.storeId ?? payload.store_id ?? "";
-    const tenantId = await findTenantByIkasStoreId(String(storeId));
+    const storeId = String(payload.storeId ?? payload.store_id ?? "");
+    const storeUrl = String(payload.storeUrl ?? payload.store_url ?? payload.myshopDomain ?? "");
+    const tenantId = await findTenantByIkasStore(storeId, storeUrl);
 
     if (!tenantId) {
       return NextResponse.json(
