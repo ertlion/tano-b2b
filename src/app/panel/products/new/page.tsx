@@ -20,6 +20,7 @@ interface Product {
   color: string | null;
   images: string[];
   masterVariants: Variant[];
+  isPushed?: boolean;
 }
 
 interface Meta {
@@ -78,7 +79,7 @@ export default function NewProductsPage() {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), limit: "50" });
+      const params = new URLSearchParams({ tab: "catalog", page: String(page), limit: "50" });
       if (search) params.set("search", search);
       const res = await fetch(`/api/panel/products?${params}`);
       if (!res.ok) throw new Error();
@@ -280,7 +281,14 @@ export default function NewProductsPage() {
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-semibold text-gray-900">{product.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-gray-900">{product.name}</h3>
+                      {product.isPushed && (
+                        <span className="shrink-0 px-2 py-0.5 bg-green-100 text-green-700 border border-green-200 rounded text-xs font-medium">
+                          Aktarıldı
+                        </span>
+                      )}
+                    </div>
                     <div className="flex flex-wrap items-center gap-2 mt-1">
                       <span className="text-xs text-gray-400 font-mono">{product.sku}</span>
                       {product.category && (

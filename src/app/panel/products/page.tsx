@@ -70,6 +70,7 @@ export default function PanelProductsPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({
+        tab: "mine",
         page: String(page),
         limit: "50",
       });
@@ -105,7 +106,7 @@ export default function PanelProductsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Ürün Kataloğu</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Ürünlerim</h1>
           {meta && meta.discountRate > 0 && (
             <p className="text-sm text-gray-500 mt-1">
               İskonto oranınız: <span className="font-medium text-blue-600">%{meta.discountRate}</span>
@@ -166,7 +167,7 @@ export default function PanelProductsPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
             <p className="text-sm text-gray-500">
-              {search ? "Aramanızla eşleşen ürün bulunamadı." : "Katalogda henüz ürün bulunmuyor."}
+              {search ? "Aramanızla eşleşen ürün bulunamadı." : "Henüz ürün aktarmadınız. Yeni Ürünler sayfasından aktarabilirsiniz."}
             </p>
           </div>
         ) : (
