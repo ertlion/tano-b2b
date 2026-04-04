@@ -22,9 +22,11 @@ export default function PanelSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [registeringWebhook, setRegisteringWebhook] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [webhookResult, setWebhookResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     async function loadSettings() {
@@ -196,8 +198,39 @@ export default function PanelSettingsPage() {
                   </div>
                 )}
 
+                {/* Webhook Result */}
+                {webhookResult && (
+                  <div className={`p-3 rounded-lg border text-sm ${
+                    webhookResult.ok ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"
+                  }`}>
+                    {webhookResult.message}
+                  </div>
+                )}
+
                 {/* Actions */}
                 <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
+                  <button
+                    onClick={async () => {
+                      setRegisteringWebhook(true);
+                      setWebhookResult(null);
+                      try {
+                        const res = await fetch("/api/panel/settings/register-webhook", { method: "POST" });
+                        const json = await res.json();
+                        setWebhookResult({
+                          ok: res.ok,
+                          message: json.message || json.error || (res.ok ? "Webhook kaydedildi" : "Webhook kaydı başarısız"),
+                        });
+                      } catch {
+                        setWebhookResult({ ok: false, message: "Webhook kaydı sırasında hata oluştu" });
+                      } finally {
+                        setRegisteringWebhook(false);
+                      }
+                    }}
+                    disabled={registeringWebhook}
+                    className="px-4 py-2.5 border border-green-300 hover:bg-green-50 disabled:opacity-50 text-green-700 font-medium rounded-lg text-sm transition-colors"
+                  >
+                    {registeringWebhook ? "Kaydediliyor..." : "Webhook Kaydet"}
+                  </button>
                   <button
                     onClick={handleTest}
                     disabled={testing}
