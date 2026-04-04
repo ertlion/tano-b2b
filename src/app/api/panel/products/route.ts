@@ -5,6 +5,7 @@ import {
   tenants,
   tenantProducts,
   masterProducts,
+  tenantProductPermissions,
 } from "@/lib/schema";
 import { eq, sql, desc } from "drizzle-orm";
 
@@ -33,9 +34,25 @@ export async function GET(request: NextRequest) {
     });
     const pushedProductIds = new Set(pushedProducts.map((p) => p.masterProductId));
 
+    // Check tenant product permissions
+    const permissions = await db.query.tenantProductPermissions.findMany({
+      where: eq(tenantProductPermissions.tenantId, tenantId),
+    });
+    const hasPermissionRecords = permissions.length > 0;
+    const allowedProductIds = hasPermissionRecords
+      ? new Set(permissions.filter((p) => p.allowed).map((p) => p.masterProductId))
+      : null; // null means no restriction
+
     if (tab === "mine") {
-      // Only products this tenant has pushed
-      if (pushedProductIds.size === 0) {
+      // Only products this tenant has pushed AND has permission for
+      let effectivePushedIds = new Set(pushedProductIds);
+      if (allowedProductIds) {
+        effectivePushedIds = new Set(
+          Array.from(pushedProductIds).filter((id) => allowedProductIds.has(id))
+        );
+      }
+
+      if (effectivePushedIds.size === 0) {
         return NextResponse.json({
           success: true,
           data: [],
@@ -43,7 +60,7 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      const idArray = Array.from(pushedProductIds);
+      const idArray = Array.from(effectivePushedIds);
       const searchCondition = search
         ? sql`${masterProducts.id} = ANY(ARRAY[${sql.raw(idArray.join(","))}]::int[]) AND (${masterProducts.name} ILIKE ${"%" + search + "%"} OR ${masterProducts.sku} ILIKE ${"%" + search + "%"})`
         : sql`${masterProducts.id} = ANY(ARRAY[${sql.raw(idArray.join(","))}]::int[])`;
@@ -74,10 +91,21 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // tab === "catalog" — full catalog with pushed status
-    const searchCondition = search
-      ? sql`${masterProducts.status} = 'active' AND (${masterProducts.name} ILIKE ${"%" + search + "%"} OR ${masterProducts.sku} ILIKE ${"%" + search + "%"})`
-      : eq(masterProducts.status, "active");
+    // tab === "catalog" — full catalog with pushed status (filtered by permissions)
+    const catalogCondition = allowedProductIds
+      ? (() => {
+          const ids = Array.from(allowedProductIds);
+          if (ids.length === 0) {
+            return sql`false`;
+          }
+          return search
+            ? sql`${masterProducts.status} = 'active' AND ${masterProducts.id} = ANY(ARRAY[${sql.raw(ids.join(","))}]::int[]) AND (${masterProducts.name} ILIKE ${"%" + search + "%"} OR ${masterProducts.sku} ILIKE ${"%" + search + "%"})`
+            : sql`${masterProducts.status} = 'active' AND ${masterProducts.id} = ANY(ARRAY[${sql.raw(ids.join(","))}]::int[])`;
+        })()
+      : search
+        ? sql`${masterProducts.status} = 'active' AND (${masterProducts.name} ILIKE ${"%" + search + "%"} OR ${masterProducts.sku} ILIKE ${"%" + search + "%"})`
+        : eq(masterProducts.status, "active");
+    const searchCondition = catalogCondition;
 
     const [countResult] = await db
       .select({ total: sql<number>`count(*)::int` })

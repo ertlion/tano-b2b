@@ -239,6 +239,35 @@ export const syncLogsRelations = relations(syncLogs, ({ one }) => ({
   }),
 }));
 
+// ─── TENANT PRODUCT PERMISSIONS ───────────────────────────
+
+export const tenantProductPermissions = pgTable(
+  "tenant_product_permissions",
+  {
+    id: serial("id").primaryKey(),
+    tenantId: integer("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    masterProductId: integer("master_product_id")
+      .notNull()
+      .references(() => masterProducts.id),
+    allowed: boolean("allowed").default(true).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("tenant_product_perm_idx").on(table.tenantId, table.masterProductId)]
+);
+
+export const tenantProductPermissionsRelations = relations(tenantProductPermissions, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [tenantProductPermissions.tenantId],
+    references: [tenants.id],
+  }),
+  masterProduct: one(masterProducts, {
+    fields: [tenantProductPermissions.masterProductId],
+    references: [masterProducts.id],
+  }),
+}));
+
 // ─── RETURNS (İADE) ───────────────────────────────────────
 
 export const returns = pgTable("returns", {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { tenants, masterProducts } from "@/lib/schema";
+import { tenants, masterProducts, tenantProductPermissions } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 
 interface RouteParams {
@@ -36,6 +36,22 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     if (!product) {
       return NextResponse.json({ error: "Ürün bulunamadı" }, { status: 404 });
+    }
+
+    // Check tenant product permissions
+    const permissions = await db.query.tenantProductPermissions.findMany({
+      where: eq(tenantProductPermissions.tenantId, tenantId),
+      columns: { masterProductId: true, allowed: true },
+    });
+
+    if (permissions.length > 0) {
+      const perm = permissions.find((p) => p.masterProductId === productId);
+      if (!perm || !perm.allowed) {
+        return NextResponse.json(
+          { error: "Bu urune erisim izniniz yok" },
+          { status: 403 }
+        );
+      }
     }
 
     const data = {
