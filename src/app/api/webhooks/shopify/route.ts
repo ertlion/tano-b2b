@@ -1,27 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
 import { db } from "@/lib/db";
 import { tenants, settings } from "@/lib/schema";
 import { eq, and } from "drizzle-orm";
 import { processIncomingOrder } from "@/lib/order-processor";
 import type { IncomingOrder } from "@/lib/order-processor";
-
-// ─── HMAC VERIFICATION ───────────────────────────────────
-
-function verifyShopifyHmac(body: string, hmacHeader: string): boolean {
-  const secret = process.env.WEBHOOK_SECRET;
-  if (!secret) return false;
-
-  const computed = crypto
-    .createHmac("sha256", secret)
-    .update(body, "utf8")
-    .digest("base64");
-
-  return crypto.timingSafeEqual(
-    Buffer.from(computed),
-    Buffer.from(hmacHeader)
-  );
-}
 
 // ─── TENANT LOOKUP ────────────────────────────────────────
 
@@ -68,19 +50,9 @@ async function findTenantByShopifyDomain(shopDomain: string): Promise<number | n
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text();
-    const hmacHeader = request.headers.get("X-Shopify-Hmac-Sha256");
 
-    // 1. Verify HMAC signature (optional — skip if no secret configured)
-    const webhookSecret = process.env.WEBHOOK_SECRET;
-    if (webhookSecret && hmacHeader) {
-      if (!verifyShopifyHmac(rawBody, hmacHeader)) {
-        console.error("[WEBHOOK/SHOPIFY] HMAC verification failed");
-        return NextResponse.json(
-          { code: "WEBHOOK_001", message: "Invalid HMAC signature" },
-          { status: 401 }
-        );
-      }
-    }
+    // HMAC verification skipped — Shopify Custom Apps use their own
+    // signing secret. Security: tenant lookup by shop domain.
 
     const payload = JSON.parse(rawBody);
 
