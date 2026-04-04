@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     // Build variant cost cache
     const variantCostCache = new Map<number, number>();
 
-    async function getVariantCost(variantId: number): Promise<number> {
+    const getVariantCost = async (variantId: number): Promise<number> => {
       if (variantCostCache.has(variantId)) return variantCostCache.get(variantId)!;
       const v = await db.query.masterVariants.findFirst({
         where: eq(masterVariants.id, variantId),
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
       const cost = Number(v?.costPrice ?? 0);
       variantCostCache.set(variantId, cost);
       return cost;
-    }
+    };
 
     // Calculate sales & cost per period
     let todaySales = 0, todayCost = 0, todayOrders = 0;
