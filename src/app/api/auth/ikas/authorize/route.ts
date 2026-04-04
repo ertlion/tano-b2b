@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const storeUrl = searchParams.get("store");
+  const storeUrl = searchParams.get("storeName") || searchParams.get("store");
 
   if (!storeUrl) {
-    return NextResponse.json({ error: "store parametresi gerekli" }, { status: 400 });
+    return NextResponse.json({ error: "store parametresi gerekli (storeName veya store)" }, { status: 400 });
   }
 
   const clientId = process.env.IKAS_APP_CLIENT_ID;

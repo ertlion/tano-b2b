@@ -7,8 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
-    const state = searchParams.get("state"); // store URL
-    const storeUrl = searchParams.get("store") || state;
+    const storeUrl = searchParams.get("storeName") || searchParams.get("store") || searchParams.get("state");
 
     if (!code || !storeUrl) {
       return new NextResponse(errorPage("Yetkilendirme kodu veya mağaza bilgisi eksik."), {
