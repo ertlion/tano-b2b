@@ -1,4 +1,4 @@
-export type MarketplaceName = "shopify" | "ikas" | "tsoft" | "ideasoft";
+export type MarketplaceName = "shopify" | "ikas" | "tsoft" | "ideasoft" | "trendyol";
 
 export interface MarketplaceCredentials {
   marketplace: MarketplaceName;

@@ -55,4 +55,13 @@ export const MARKETPLACE_SETTINGS: Record<
       ...pricingKeys("ideasoft"),
     ],
   },
+  trendyol: {
+    displayName: "Trendyol",
+    settingsKeys: [
+      { key: "trendyol_supplier_id", label: "Satıcı ID", type: "text" },
+      { key: "trendyol_api_key", label: "API Key", type: "text" },
+      { key: "trendyol_api_secret", label: "API Secret", type: "password" },
+      ...pricingKeys("trendyol"),
+    ],
+  },
 };

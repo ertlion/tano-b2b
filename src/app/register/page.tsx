@@ -9,6 +9,7 @@ const MARKETPLACE_OPTIONS = [
   { value: "ikas", label: "ikas" },
   { value: "tsoft", label: "TSoft" },
   { value: "ideasoft", label: "IdeaSoft" },
+  { value: "trendyol", label: "Trendyol" },
 ];
 
 export default function RegisterPage() {
