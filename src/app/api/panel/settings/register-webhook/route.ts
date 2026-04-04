@@ -85,6 +85,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (errors.length > 0 && registered.length === 0 && skipped.length === 0) {
+      // Check common issues
+      const errorText = errors.join(" ");
+      let hint = "";
+      if (errorText.includes("protocol http://")) {
+        hint = " HTTPS gerekli — domain'e SSL ekleyin.";
+      }
+      if (errorText.includes("Invalid topic") || errorText.includes("missing access scope")) {
+        hint += " Shopify Custom App'te read_orders ve write_orders scope'ları eksik olabilir.";
+      }
+      return NextResponse.json({
+        success: false,
+        error: `Webhook kaydı başarısız.${hint}`,
+        details: errors,
+      }, { status: 422 });
+    }
+
     return NextResponse.json({
       success: true,
       data: {
