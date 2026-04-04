@@ -51,11 +51,16 @@ export async function POST(request: NextRequest) {
 
     for (const productId of productIds) {
       try {
+        const variantIds = Array.isArray(body.variantIds)
+          ? body.variantIds.filter((id: unknown) => typeof id === "number")
+          : undefined;
+
         const result = await pushProductToTenant(
           tenantId,
           tenant.marketplace as MarketplaceName,
           productId,
-          body.categoryMapping || undefined
+          body.categoryMapping || undefined,
+          variantIds
         );
         if (result.success) {
           results.push({ productId, success: true });

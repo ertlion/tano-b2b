@@ -107,7 +107,8 @@ export async function pushProductToTenant(
   tenantId: number,
   marketplace: MarketplaceName,
   masterProductId: number,
-  categoryMapping?: string
+  categoryMapping?: string,
+  selectedVariantIds?: number[]
 ): Promise<{ success: boolean; error?: string }> {
   const credentials = await resolveCredentials(tenantId, marketplace);
   if (!credentials) {
@@ -136,9 +137,21 @@ export async function pushProductToTenant(
     return { success: false, error: "Ürün bulunamadı" };
   }
 
-  const variants = await db.query.masterVariants.findMany({
+  let variants = await db.query.masterVariants.findMany({
     where: eq(masterVariants.masterProductId, masterProductId),
   });
+
+  // Filter by selected variant IDs if provided
+  if (selectedVariantIds && selectedVariantIds.length > 0) {
+    variants = variants.filter((v) => selectedVariantIds.includes(v.id));
+  }
+
+  // Filter out zero-stock variants
+  variants = variants.filter((v) => v.stockQuantity > 0);
+
+  if (variants.length === 0) {
+    return { success: false, error: "Stoklu varyant bulunamadı" };
+  }
 
   // Build unique variant names: color + size, or just color/size if one is missing
   const variantData = variants.map((v) => {
