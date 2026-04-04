@@ -329,6 +329,7 @@ export const invoices = pgTable("invoices", {
   notes: text("notes"),
   fileUrl: text("file_url"), // PDF base64 or URL
   dueDate: timestamp("due_date"),
+  parasutInvoiceId: varchar("parasut_invoice_id", { length: 100 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

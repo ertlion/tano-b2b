@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
         notes: invoices.notes,
         fileUrl: invoices.fileUrl,
         dueDate: invoices.dueDate,
+        parasutInvoiceId: invoices.parasutInvoiceId,
         createdAt: invoices.createdAt,
         updatedAt: invoices.updatedAt,
       })

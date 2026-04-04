@@ -33,6 +33,7 @@ interface Invoice {
   notes: string | null;
   fileUrl: string | null;
   dueDate: string | null;
+  parasutInvoiceId: string | null;
   createdAt: string;
   payments?: Payment[];
 }
@@ -107,6 +108,9 @@ export default function AdminInvoicesPage() {
 
   // File upload state
   const [fileUploading, setFileUploading] = useState(false);
+
+  // Parasut send state
+  const [parasutSending, setParasutSending] = useState<number | null>(null);
 
   // Load tenants
   useEffect(() => {
@@ -295,6 +299,28 @@ export default function AdminInvoicesPage() {
     }
   }
 
+  async function handleSendToParasut(inv: Invoice) {
+    if (!confirm(`"${inv.invoiceNumber}" faturasini Parasut'e gondermek istediginize emin misiniz?`)) return;
+    setParasutSending(inv.id);
+    try {
+      const res = await fetch("/api/admin/parasut/invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoiceId: inv.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Gonderilemedi");
+      }
+      alert(`Parasut'e gonderildi! ID: ${data.data.parasutInvoiceId}`);
+      fetchInvoices();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Bir hata olustu");
+    } finally {
+      setParasutSending(null);
+    }
+  }
+
   const totalPages = Math.ceil(total / limit);
 
   // Summary stats
@@ -432,6 +458,20 @@ export default function AdminInvoicesPage() {
                                     >
                                       PDF
                                     </a>
+                                  )}
+                                  {!inv.parasutInvoiceId && (
+                                    <button
+                                      onClick={() => handleSendToParasut(inv)}
+                                      disabled={parasutSending === inv.id}
+                                      className="px-2 py-1 text-xs font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded hover:bg-purple-100 disabled:opacity-50 transition-colors"
+                                    >
+                                      {parasutSending === inv.id ? "..." : "Parasut"}
+                                    </button>
+                                  )}
+                                  {inv.parasutInvoiceId && (
+                                    <span className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded">
+                                      PST
+                                    </span>
                                   )}
                                   {inv.status === "unpaid" && (
                                     <button

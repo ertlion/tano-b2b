@@ -9,6 +9,20 @@ interface SmtpSettings {
   password: string;
 }
 
+interface ParasutSettings {
+  parasut_client_id: string;
+  parasut_client_secret: string;
+  parasut_email: string;
+  parasut_password: string;
+  parasut_company_id: string;
+}
+
+interface Tenant {
+  id: number;
+  name: string;
+  company: string;
+}
+
 export default function SettingsPage() {
   const [form, setForm] = useState<SmtpSettings>({
     host: "",
@@ -21,6 +35,28 @@ export default function SettingsPage() {
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Parasut state
+  const [parasut, setParasut] = useState<ParasutSettings>({
+    parasut_client_id: "",
+    parasut_client_secret: "",
+    parasut_email: "",
+    parasut_password: "",
+    parasut_company_id: "",
+  });
+  const [parasutSaving, setParasutSaving] = useState(false);
+  const [parasutTesting, setParasutTesting] = useState(false);
+  const [parasutError, setParasutError] = useState("");
+  const [parasutSuccess, setParasutSuccess] = useState("");
+
+  // Parasut invoice creation
+  const [tenantList, setTenantList] = useState<Tenant[]>([]);
+  const [invoiceTenantId, setInvoiceTenantId] = useState("");
+  const [invoicePeriodStart, setInvoicePeriodStart] = useState("");
+  const [invoicePeriodEnd, setInvoicePeriodEnd] = useState("");
+  const [invoiceCreating, setInvoiceCreating] = useState(false);
+  const [invoiceError, setInvoiceError] = useState("");
+  const [invoiceSuccess, setInvoiceSuccess] = useState("");
 
   useEffect(() => {
     async function loadSettings() {
@@ -44,6 +80,37 @@ export default function SettingsPage() {
       }
     }
     loadSettings();
+  }, []);
+
+  // Load Parasut settings
+  useEffect(() => {
+    async function loadParasut() {
+      try {
+        const res = await fetch("/api/admin/parasut/settings");
+        if (!res.ok) return;
+        const json = await res.json();
+        const data = json.data || {};
+        setParasut((prev) => ({
+          ...prev,
+          parasut_client_id: data.parasut_client_id || "",
+          parasut_client_secret: data.parasut_client_secret || "",
+          parasut_email: data.parasut_email || "",
+          parasut_password: data.parasut_password || "",
+          parasut_company_id: data.parasut_company_id || "",
+        }));
+      } catch {
+        // ignore
+      }
+    }
+    loadParasut();
+  }, []);
+
+  // Load tenants for invoice creation
+  useEffect(() => {
+    fetch("/api/admin/tenants")
+      .then((r) => r.json())
+      .then((json) => setTenantList(json.data || []))
+      .catch(() => {});
   }, []);
 
   async function handleSave() {
@@ -100,6 +167,84 @@ export default function SettingsPage() {
       setError(err instanceof Error ? err.message : "Bir hata oluştu");
     } finally {
       setTesting(false);
+    }
+  }
+
+  // Parasut save
+  async function handleParasutSave() {
+    setParasutSaving(true);
+    setParasutError("");
+    setParasutSuccess("");
+    try {
+      const res = await fetch("/api/admin/parasut/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parasut),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Kayit basarisiz");
+      }
+      setParasutSuccess("Parasut ayarlari kaydedildi");
+      setTimeout(() => setParasutSuccess(""), 3000);
+    } catch (err) {
+      setParasutError(err instanceof Error ? err.message : "Bir hata olustu");
+    } finally {
+      setParasutSaving(false);
+    }
+  }
+
+  // Parasut test connection
+  async function handleParasutTest() {
+    setParasutTesting(true);
+    setParasutError("");
+    setParasutSuccess("");
+    try {
+      const res = await fetch("/api/admin/parasut/test", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Test basarisiz");
+      }
+      setParasutSuccess(data.message || "Baglanti basarili!");
+      setTimeout(() => setParasutSuccess(""), 3000);
+    } catch (err) {
+      setParasutError(err instanceof Error ? err.message : "Bir hata olustu");
+    } finally {
+      setParasutTesting(false);
+    }
+  }
+
+  // Parasut create invoice
+  async function handleCreateParasutInvoice() {
+    if (!invoiceTenantId || !invoicePeriodStart || !invoicePeriodEnd) {
+      setInvoiceError("Tum alanlari doldurun");
+      return;
+    }
+    setInvoiceCreating(true);
+    setInvoiceError("");
+    setInvoiceSuccess("");
+    try {
+      const res = await fetch("/api/admin/parasut/invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: parseInt(invoiceTenantId),
+          periodStart: invoicePeriodStart,
+          periodEnd: invoicePeriodEnd,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Fatura olusturulamadi");
+      }
+      setInvoiceSuccess(
+        `Fatura olusturuldu! Parasut ID: ${data.data.parasutInvoiceId}, ${data.data.orderCount} siparis, ${data.data.itemCount} kalem`
+      );
+      setTimeout(() => setInvoiceSuccess(""), 8000);
+    } catch (err) {
+      setInvoiceError(err instanceof Error ? err.message : "Bir hata olustu");
+    } finally {
+      setInvoiceCreating(false);
     }
   }
 
@@ -190,6 +335,149 @@ export default function SettingsPage() {
             className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg text-sm transition-colors"
           >
             {saving ? "Kaydediliyor..." : "Kaydet"}
+          </button>
+        </div>
+      </div>
+      {/* Parasut Integration */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Parasut Entegrasyonu</h2>
+        <p className="text-sm text-gray-500 mb-6">
+          Parasut e-fatura entegrasyonu icin API bilgilerini girin. parasut.com hesabinizdan alinabilir.
+        </p>
+
+        {parasutError && (
+          <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm mb-4">{parasutError}</div>
+        )}
+        {parasutSuccess && (
+          <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm mb-4">{parasutSuccess}</div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Client ID</label>
+            <input
+              type="text"
+              value={parasut.parasut_client_id}
+              onChange={(e) => setParasut({ ...parasut, parasut_client_id: e.target.value })}
+              placeholder="Parasut Client ID"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Client Secret</label>
+            <input
+              type="password"
+              value={parasut.parasut_client_secret}
+              onChange={(e) => setParasut({ ...parasut, parasut_client_secret: e.target.value })}
+              placeholder="Parasut Client Secret"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">E-posta</label>
+            <input
+              type="text"
+              value={parasut.parasut_email}
+              onChange={(e) => setParasut({ ...parasut, parasut_email: e.target.value })}
+              placeholder="Parasut hesap e-postasi"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Sifre</label>
+            <input
+              type="password"
+              value={parasut.parasut_password}
+              onChange={(e) => setParasut({ ...parasut, parasut_password: e.target.value })}
+              placeholder="Parasut hesap sifresi"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Sirket ID</label>
+            <input
+              type="text"
+              value={parasut.parasut_company_id}
+              onChange={(e) => setParasut({ ...parasut, parasut_company_id: e.target.value })}
+              placeholder="Parasut sirket ID"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-col sm:flex-row justify-end gap-3">
+          <button
+            onClick={handleParasutTest}
+            disabled={parasutTesting || !parasut.parasut_client_id}
+            className="px-4 py-2.5 border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 font-medium rounded-lg text-sm transition-colors"
+          >
+            {parasutTesting ? "Test ediliyor..." : "Baglantiyi Test Et"}
+          </button>
+          <button
+            onClick={handleParasutSave}
+            disabled={parasutSaving}
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg text-sm transition-colors"
+          >
+            {parasutSaving ? "Kaydediliyor..." : "Kaydet"}
+          </button>
+        </div>
+      </div>
+
+      {/* Parasut Invoice Creation */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Haftalik Fatura Olustur</h2>
+        <p className="text-sm text-gray-500 mb-6">
+          Secilen musteri ve donem icin Parasut uzerinde satis faturasi olusturur.
+        </p>
+
+        {invoiceError && (
+          <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm mb-4">{invoiceError}</div>
+        )}
+        {invoiceSuccess && (
+          <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm mb-4">{invoiceSuccess}</div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Musteri</label>
+            <select
+              value={invoiceTenantId}
+              onChange={(e) => setInvoiceTenantId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              <option value="">Musteri secin...</option>
+              {tenantList.map((t) => (
+                <option key={t.id} value={t.id}>{t.company} ({t.name})</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Donem Baslangic</label>
+            <input
+              type="date"
+              value={invoicePeriodStart}
+              onChange={(e) => setInvoicePeriodStart(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Donem Bitis</label>
+            <input
+              type="date"
+              value={invoicePeriodEnd}
+              onChange={(e) => setInvoicePeriodEnd(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={handleCreateParasutInvoice}
+            disabled={invoiceCreating || !invoiceTenantId || !invoicePeriodStart || !invoicePeriodEnd}
+            className="px-6 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed text-white font-medium rounded-lg text-sm transition-colors"
+          >
+            {invoiceCreating ? "Olusturuluyor..." : "Parasut Faturasi Olustur"}
           </button>
         </div>
       </div>
