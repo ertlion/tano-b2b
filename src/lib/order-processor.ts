@@ -1,6 +1,6 @@
 import { db } from "./db";
-import { orders, masterVariants, stockMovements } from "./schema";
-import { eq, or, and } from "drizzle-orm";
+import { orders, masterVariants, masterProducts, stockMovements } from "./schema";
+import { eq, and } from "drizzle-orm";
 import { syncAllTenantsStock } from "./sync-engine";
 
 // ─── TYPES ────────────────────────────────────────────────
@@ -159,12 +159,59 @@ export async function processIncomingOrder(order: IncomingOrder): Promise<Proces
 // ─── HELPERS ──────────────────────────────────────────────
 
 async function findVariantBySkuOrBarcode(sku: string, barcode?: string) {
-  const conditions = [eq(masterVariants.sku, sku)];
+  // 1. Exact SKU match
+  const bySku = await db.query.masterVariants.findFirst({
+    where: eq(masterVariants.sku, sku),
+  });
+  if (bySku) return bySku;
+
+  // 2. Exact barcode match
   if (barcode) {
-    conditions.push(eq(masterVariants.barcode, barcode));
+    const byBarcode = await db.query.masterVariants.findFirst({
+      where: eq(masterVariants.barcode, barcode),
+    });
+    if (byBarcode) return byBarcode;
   }
 
-  return db.query.masterVariants.findFirst({
-    where: or(...conditions),
-  });
+  // 3. Shopify SKU format: "{productSku}-{variantName}" e.g. "202146-GRİ"
+  // Split on first dash and try to match by product SKU + color/size
+  const dashIndex = sku.indexOf("-");
+  if (dashIndex > 0) {
+    const productSku = sku.substring(0, dashIndex);
+    const variantName = sku.substring(dashIndex + 1).trim();
+
+    // Find the master product
+    const product = await db.query.masterProducts.findFirst({
+      where: eq(masterProducts.sku, productSku),
+      columns: { id: true },
+    });
+
+    if (product) {
+      // Try matching variant by color or size
+      const variants = await db.query.masterVariants.findMany({
+        where: eq(masterVariants.masterProductId, product.id),
+      });
+
+      // Match by color
+      const byColor = variants.find(
+        (v) => v.color?.toUpperCase() === variantName.toUpperCase()
+      );
+      if (byColor) return byColor;
+
+      // Match by size
+      const bySize = variants.find(
+        (v) => v.size.toUpperCase() === variantName.toUpperCase()
+      );
+      if (bySize) return bySize;
+
+      // Match by "color / size" format e.g. "GRİ / M"
+      const byColorSize = variants.find((v) => {
+        const combined = [v.color, v.size !== "STD" ? v.size : null].filter(Boolean).join(" / ").toUpperCase();
+        return combined === variantName.toUpperCase();
+      });
+      if (byColorSize) return byColorSize;
+    }
+  }
+
+  return null;
 }
