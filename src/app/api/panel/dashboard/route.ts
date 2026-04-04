@@ -7,6 +7,7 @@ import {
   orders,
   tenants,
   tenantProducts,
+  invoices,
 } from "@/lib/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
 
@@ -109,6 +110,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Cari hesap summary
+    const tenantInvoices = await db.query.invoices.findMany({
+      where: eq(invoices.tenantId, tenantId),
+      columns: { totalAmount: true, paidAmount: true },
+    });
+    const cariTotalDebt = tenantInvoices.reduce((s, i) => s + Number(i.totalAmount), 0);
+    const cariTotalPaid = tenantInvoices.reduce((s, i) => s + Number(i.paidAmount), 0);
+    const cariBalance = cariTotalDebt - cariTotalPaid;
+
     // Recent orders (last 5)
     const recentOrders = await db.query.orders.findMany({
       where: eq(orders.tenantId, tenantId),
@@ -139,6 +149,11 @@ export async function GET(request: NextRequest) {
           total: { revenue: round2(totalSales), cost: round2(totalCost), profit: round2(totalSales - totalCost) },
         },
         recentOrders,
+        cari: {
+          totalDebt: round2(cariTotalDebt),
+          totalPaid: round2(cariTotalPaid),
+          balance: round2(cariBalance),
+        },
       },
     });
   } catch (error) {

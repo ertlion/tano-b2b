@@ -54,6 +54,10 @@ export default function TenantDetailPage() {
   const [discountSaving, setDiscountSaving] = useState(false);
   const [discountMsg, setDiscountMsg] = useState("");
 
+  // Cari hesap
+  const [cariLoading, setCariLoading] = useState(true);
+  const [cariData, setCariData] = useState<{ totalDebt: number; totalPaid: number; balance: number } | null>(null);
+
   // Permission states
   const [permModalOpen, setPermModalOpen] = useState(false);
   const [permProducts, setPermProducts] = useState<PermissionProduct[]>([]);
@@ -251,6 +255,23 @@ export default function TenantDetailPage() {
     );
   });
 
+  // Load cari hesap
+  useEffect(() => {
+    if (tenantId) {
+      setCariLoading(true);
+      fetch(`/api/admin/invoices?tenantId=${tenantId}&limit=100`)
+        .then((r) => r.json())
+        .then((json) => {
+          const invoices = json.data || [];
+          const totalDebt = invoices.reduce((s: number, i: { totalAmount: string }) => s + Number(i.totalAmount), 0);
+          const totalPaid = invoices.reduce((s: number, i: { paidAmount: string }) => s + Number(i.paidAmount), 0);
+          setCariData({ totalDebt, totalPaid, balance: totalDebt - totalPaid });
+        })
+        .catch(() => setCariData(null))
+        .finally(() => setCariLoading(false));
+    }
+  }, [tenantId]);
+
   // Load permission meta on mount
   useEffect(() => {
     if (tenantId) {
@@ -425,6 +446,53 @@ export default function TenantDetailPage() {
             </Link>
           )}
         </div>
+      </div>
+
+      {/* Cari Hesap */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Cari Hesap</h2>
+        </div>
+        {cariLoading ? (
+          <div className="px-6 py-8">
+            <div className="h-8 bg-gray-100 rounded animate-pulse" />
+          </div>
+        ) : cariData ? (
+          <div className="px-6 py-6">
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-xs text-gray-500">Toplam Borc</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">
+                  {cariData.totalDebt.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} TL
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Toplam Odenen</p>
+                <p className="text-xl font-bold text-green-600 mt-1">
+                  {cariData.totalPaid.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} TL
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Bakiye</p>
+                <p className={`text-xl font-bold mt-1 ${cariData.balance > 0 ? "text-red-600" : "text-green-600"}`}>
+                  {cariData.balance.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} TL
+                </p>
+              </div>
+            </div>
+            {(cariData.totalDebt > 0 || cariData.totalPaid > 0) && (
+              <div className="mt-4 text-center">
+                <a
+                  href={`/admin/invoices?tenantId=${tenantId}`}
+                  className="text-sm text-blue-600 hover:text-blue-700"
+                >
+                  Faturalari Gor
+                </a>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="px-6 py-8 text-center text-sm text-gray-500">Cari bilgisi yuklenemedi.</div>
+        )}
       </div>
 
       {/* Product Permissions */}

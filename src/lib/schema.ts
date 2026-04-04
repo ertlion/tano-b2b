@@ -38,6 +38,8 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
   syncLogs: many(syncLogs),
   notifications: many(notifications),
   returns: many(returns),
+  invoices: many(invoices),
+  payments: many(payments),
 }));
 
 // ─── SETTINGS ──────────────────────────────────────────────
@@ -307,6 +309,63 @@ export const returnsRelations = relations(returns, ({ one }) => ({
   masterProduct: one(masterProducts, {
     fields: [returns.masterProductId],
     references: [masterProducts.id],
+  }),
+}));
+
+// ─── INVOICES (FATURALAR) ──────────────────────────────────
+
+export const invoices = pgTable("invoices", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  invoiceNumber: varchar("invoice_number", { length: 100 }).notNull(),
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  totalAmount: numeric("total_amount", { precision: 12, scale: 2 }).notNull(),
+  paidAmount: numeric("paid_amount", { precision: 12, scale: 2 }).default("0").notNull(),
+  currency: varchar("currency", { length: 10 }).default("TRY").notNull(),
+  status: varchar("status", { length: 20 }).default("unpaid").notNull(), // unpaid, partial, paid
+  notes: text("notes"),
+  fileUrl: text("file_url"), // PDF base64 or URL
+  dueDate: timestamp("due_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const invoicesRelations = relations(invoices, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [invoices.tenantId],
+    references: [tenants.id],
+  }),
+  payments: many(payments),
+}));
+
+// ─── PAYMENTS (ÖDEMELER) ───────────────────────────────────
+
+export const payments = pgTable("payments", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  invoiceId: integer("invoice_id")
+    .references(() => invoices.id),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  type: varchar("type", { length: 30 }).notNull(), // payment, refund
+  method: varchar("method", { length: 50 }), // bank_transfer, cash, credit_card
+  reference: varchar("reference", { length: 255 }), // dekont no, açıklama
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [payments.tenantId],
+    references: [tenants.id],
+  }),
+  invoice: one(invoices, {
+    fields: [payments.invoiceId],
+    references: [invoices.id],
   }),
 }));
 
