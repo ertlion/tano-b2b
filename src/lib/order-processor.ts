@@ -1,7 +1,8 @@
 import { db } from "./db";
 import { orders, masterVariants, masterProducts, stockMovements, returns } from "./schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { syncAllTenantsStock } from "./sync-engine";
+import { resolveByStoreSkuOrBarcode } from "./sku-mapping";
 
 // ─── TYPES ────────────────────────────────────────────────
 
@@ -104,35 +105,40 @@ export async function processIncomingOrder(order: IncomingOrder): Promise<Proces
 
     const requiresReview = returnWarnings.length > 0;
 
-    // 4. If no return history, decrease stock normally
+    // 4. If no return history, decrease stock atomically (tek havuz - Epic B).
+    // Atomik UPDATE ile race condition / overselling önlenir.
+    let stockApplied = false;
     if (!requiresReview) {
       for (const item of processedItems) {
-        const currentVariant = await db.query.masterVariants.findFirst({
+        // Ledger için mevcut stok (gösterim amaçlı); gerçek düşüm atomiktir.
+        const current = await db.query.masterVariants.findFirst({
           where: eq(masterVariants.id, item.masterVariantId),
+          columns: { stockQuantity: true },
         });
+        const previousStock = current?.stockQuantity ?? 0;
 
-        if (!currentVariant) continue;
-
-        const previousStock = currentVariant.stockQuantity;
-        const newStock = Math.max(0, previousStock - item.quantity);
-
-        await db
+        // Atomik düşüm — canlı DB değerini kullanır, overselling önler.
+        const [updated] = await db
           .update(masterVariants)
           .set({
-            stockQuantity: newStock,
+            stockQuantity: sql`GREATEST(0, ${masterVariants.stockQuantity} - ${item.quantity})`,
             updatedAt: new Date(),
           })
-          .where(eq(masterVariants.id, item.masterVariantId));
+          .where(eq(masterVariants.id, item.masterVariantId))
+          .returning({ newStock: masterVariants.stockQuantity });
+
+        if (!updated) continue;
 
         await db.insert(stockMovements).values({
           masterVariantId: item.masterVariantId,
           type: "order",
           quantity: -item.quantity,
           previousStock,
-          newStock,
+          newStock: updated.newStock,
           reference: `${order.marketplace}#${order.orderNumber}`,
         });
       }
+      stockApplied = true;
     }
 
     // 5. Create order record
@@ -161,7 +167,8 @@ export async function processIncomingOrder(order: IncomingOrder): Promise<Proces
         })),
         totalAmount: String(order.totalAmount),
         currency: order.currency ?? "TRY",
-        status: requiresReview ? "pending_review" : "new",
+        status: requiresReview ? "pending_review" : "bekleniyor",
+        stockApplied,
         notes: orderNotes,
       })
       .returning({ id: orders.id });
@@ -184,7 +191,20 @@ export async function processIncomingOrder(order: IncomingOrder): Promise<Proces
 // ─── HELPERS ──────────────────────────────────────────────
 
 async function findVariantBySkuOrBarcode(sku: string, barcode?: string) {
-  // 1. Exact SKU match
+  // 0. Epic J: mağaza bazlı store SKU/barkod ile ters eşleme (öncelikli).
+  // Siparişler artık her mağazaya özel benzersiz SKU/barkod ile gelir.
+  for (const code of [sku, barcode]) {
+    if (!code) continue;
+    const resolved = await resolveByStoreSkuOrBarcode(code);
+    if (resolved) {
+      const v = await db.query.masterVariants.findFirst({
+        where: eq(masterVariants.id, resolved.masterVariantId),
+      });
+      if (v) return v;
+    }
+  }
+
+  // 1. Exact SKU match (legacy / ikas master SKU)
   const bySku = await db.query.masterVariants.findFirst({
     where: eq(masterVariants.sku, sku),
   });

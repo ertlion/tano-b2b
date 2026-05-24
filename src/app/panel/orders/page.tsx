@@ -33,34 +33,33 @@ interface OrdersResponse {
 }
 
 const STATUS_OPTIONS = [
-  { value: "", label: "Tum Durumlar" },
-  { value: "new", label: "Yeni" },
+  { value: "", label: "Tüm Durumlar" },
+  { value: "bekleniyor", label: "Bekleniyor" },
+  { value: "hazirlanacak", label: "Hazırlanacak" },
+  { value: "paketlendi", label: "Paketlendi" },
+  { value: "gonderildi", label: "Gönderildi" },
   { value: "pending_review", label: "Onay Bekliyor" },
-  { value: "processing", label: "Isleniyor" },
-  { value: "preparing", label: "Hazirlaniyor" },
-  { value: "shipped", label: "Kargoda" },
-  { value: "delivered", label: "Teslim Edildi" },
-  { value: "cancelled", label: "Iptal" },
+  { value: "cancelled", label: "İptal" },
 ];
 
 const STATUS_BADGE: Record<string, string> = {
-  new: "bg-blue-100 text-blue-700",
+  bekleniyor: "bg-gray-100 text-gray-700",
+  hazirlanacak: "bg-yellow-100 text-yellow-700",
+  paketlendi: "bg-blue-100 text-blue-700",
+  gonderildi: "bg-green-100 text-green-700",
   pending_review: "bg-orange-100 text-orange-700",
-  processing: "bg-blue-100 text-blue-700",
-  preparing: "bg-yellow-100 text-yellow-700",
-  shipped: "bg-purple-100 text-purple-700",
-  delivered: "bg-green-100 text-green-700",
   cancelled: "bg-red-100 text-red-700",
+  returned: "bg-red-100 text-red-700",
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  new: "Yeni",
+  bekleniyor: "Bekleniyor",
+  hazirlanacak: "Hazırlanacak",
+  paketlendi: "Paketlendi",
+  gonderildi: "Gönderildi",
   pending_review: "Onay Bekliyor",
-  processing: "Isleniyor",
-  preparing: "Hazirlaniyor",
-  shipped: "Kargoda",
-  delivered: "Teslim Edildi",
-  cancelled: "Iptal",
+  cancelled: "İptal",
+  returned: "İade",
 };
 
 function ProductThumb({ src, alt }: { src: string | null; alt: string }) {

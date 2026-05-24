@@ -26,6 +26,8 @@ export const tenants = pgTable("tenants", {
   isApproved: boolean("is_approved").default(false).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   discountRate: numeric("discount_rate", { precision: 5, scale: 2 }).default("0").notNull(),
+  // Üyenin varsayılan kar marjı (%). Varyant bazlı override yoksa bu uygulanır.
+  defaultMarkupPercent: numeric("default_markup_percent", { precision: 6, scale: 2 }).default("0").notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -69,6 +71,7 @@ export const settingsRelations = relations(settings, ({ one }) => ({
 export const masterProducts = pgTable("master_products", {
   id: serial("id").primaryKey(),
   sku: varchar("sku", { length: 100 }).notNull().unique(),
+  externalId: varchar("external_id", { length: 100 }).unique(),
   barcode: varchar("barcode", { length: 100 }),
   name: varchar("name", { length: 500 }).notNull(),
   description: text("description"),
@@ -79,6 +82,7 @@ export const masterProducts = pgTable("master_products", {
   color: varchar("color", { length: 100 }),
   material: varchar("material", { length: 255 }),
   status: varchar("status", { length: 20 }).default("active").notNull(),
+  source: varchar("source", { length: 20 }).default("manual").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -95,13 +99,20 @@ export const masterVariants = pgTable("master_variants", {
   masterProductId: integer("master_product_id")
     .notNull()
     .references(() => masterProducts.id),
+  externalId: varchar("external_id", { length: 100 }),
   color: varchar("color", { length: 100 }),
   size: varchar("size", { length: 20 }).notNull(),
-  barcode: varchar("barcode", { length: 100 }).notNull().unique(),
+  // NOT: ikas'ta barkodlar benzersiz değil (placeholder/tekrar eden barkodlar var).
+  // Gerçek benzersiz mağaza barkodları tenant_variant_skus'ta üretilir (Epic J).
+  barcode: varchar("barcode", { length: 100 }).notNull(),
   sku: varchar("sku", { length: 100 }).notNull(),
+  images: json("images").$type<string[]>().default([]).notNull(),
   stockQuantity: integer("stock_quantity").default(0).notNull(),
   costPrice: numeric("cost_price", { precision: 10, scale: 2 }).default("0").notNull(),
   salePrice: numeric("sale_price", { precision: 10, scale: 2 }).default("0").notNull(),
+  // ikas "Dolar B2B" fiyat listesinden USD toptan fiyatı — TL fiyatların temeli.
+  // TL = usdPrice × app_config.usd_try_rate; üye kendi markup'ını uygular.
+  usdPrice: numeric("usd_price", { precision: 10, scale: 2 }).default("0").notNull(),
   weight: integer("weight"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -113,6 +124,7 @@ export const masterVariantsRelations = relations(masterVariants, ({ one, many })
     references: [masterProducts.id],
   }),
   stockMovements: many(stockMovements),
+  tenantVariantSkus: many(tenantVariantSkus),
 }));
 
 // ─── TENANT PRODUCTS ───────────────────────────────────────
@@ -164,7 +176,16 @@ export const orders = pgTable("orders", {
   items: json("items").notNull(),
   totalAmount: numeric("total_amount", { precision: 10, scale: 2 }).notNull(),
   currency: varchar("currency", { length: 10 }).default("TRY").notNull(),
-  status: varchar("status", { length: 30 }).default("new").notNull(),
+  // Tano Toptan fulfillment state machine:
+  // bekleniyor → (üye fatura+etiket yükledi) hazirlanacak → (Tano işleme aldı) paketlendi → gonderildi
+  // (iptal: cancelled)
+  status: varchar("status", { length: 30 }).default("bekleniyor").notNull(),
+  // Üye tarafından yüklenen fatura ve kargo etiketi (PDF/görsel). İkisi de doluysa hazirlanacak olur.
+  invoiceFileUrl: text("invoice_file_url"),
+  cargoLabelFileUrl: text("cargo_label_file_url"),
+  invoiceUploadedAt: timestamp("invoice_uploaded_at"),
+  // Tek havuz stok idempotency: bu sipariş için master stok bir kez düşüldü mü?
+  stockApplied: boolean("stock_applied").default(false).notNull(),
   cargoCompany: varchar("cargo_company", { length: 100 }),
   cargoTrackingNumber: varchar("cargo_tracking_number", { length: 255 }),
   cargoTrackingUrl: text("cargo_tracking_url"),
@@ -386,5 +407,117 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
   tenant: one(tenants, {
     fields: [notifications.tenantId],
     references: [tenants.id],
+  }),
+}));
+
+// ─── XML FEEDS (Otomatik Ürün Çekme Kaynakları) ────────────
+
+export const xmlFeeds = pgTable("xml_feeds", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  url: text("url").notNull(),
+  intervalMinutes: integer("interval_minutes").default(60).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  lastRunAt: timestamp("last_run_at"),
+  lastRunStatus: varchar("last_run_status", { length: 20 }),
+  lastRunSummary: json("last_run_summary"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ─── TENANT VARIANT SKUS (Mağaza Bazlı SKU/Barkod Eşleme - Epic J) ──
+// Her (tenant, master_variant, kanal) için benzersiz store_sku + store_barcode.
+// Amaç: pazaryerlerinde ürünler birbiriyle eşleşmesin (buybox engelleme) +
+// sipariş gelince store SKU/barkod → master varyant ters eşleme.
+
+export const tenantVariantSkus = pgTable(
+  "tenant_variant_skus",
+  {
+    id: serial("id").primaryKey(),
+    tenantId: integer("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    masterVariantId: integer("master_variant_id")
+      .notNull()
+      .references(() => masterVariants.id),
+    marketplace: varchar("marketplace", { length: 50 }).notNull(),
+    storeSku: varchar("store_sku", { length: 150 }).notNull().unique(),
+    storeBarcode: varchar("store_barcode", { length: 150 }).notNull().unique(),
+    externalProductId: varchar("external_product_id", { length: 255 }),
+    externalVariantId: varchar("external_variant_id", { length: 255 }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("tenant_variant_skus_unique_idx").on(
+      table.tenantId,
+      table.masterVariantId,
+      table.marketplace
+    ),
+  ]
+);
+
+export const tenantVariantSkusRelations = relations(tenantVariantSkus, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [tenantVariantSkus.tenantId],
+    references: [tenants.id],
+  }),
+  masterVariant: one(masterVariants, {
+    fields: [tenantVariantSkus.masterVariantId],
+    references: [masterVariants.id],
+  }),
+}));
+
+// ─── IKAS SYNC STATE (Epic A) ───────────────────────────────
+// ikas master stok senkronu için cursor / son çalışma durumu (key-value).
+
+export const ikasSyncState = pgTable("ikas_sync_state", {
+  id: serial("id").primaryKey(),
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  value: text("value"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ─── APP CONFIG (Global ayarlar - admin) ───────────────────
+// Örn: usd_try_rate (USD→TL kuru), ikas_b2b_price_list_id.
+export const appConfig = pgTable("app_config", {
+  id: serial("id").primaryKey(),
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  value: text("value"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ─── TENANT VARIANT PRICES (Üye fiyatlandırması) ───────────
+// Üye varyant/ürün bazında fiyatlandırır: yüzde markup VEYA manuel TL fiyat.
+// Override yoksa tenants.default_markup_percent uygulanır.
+export const tenantVariantPrices = pgTable(
+  "tenant_variant_prices",
+  {
+    id: serial("id").primaryKey(),
+    tenantId: integer("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    masterVariantId: integer("master_variant_id")
+      .notNull()
+      .references(() => masterVariants.id),
+    mode: varchar("mode", { length: 10 }).notNull(), // 'percent' | 'manual'
+    percent: numeric("percent", { precision: 6, scale: 2 }),
+    manualPriceTry: numeric("manual_price_try", { precision: 10, scale: 2 }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("tenant_variant_prices_unique_idx").on(table.tenantId, table.masterVariantId),
+  ]
+);
+
+export const tenantVariantPricesRelations = relations(tenantVariantPrices, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [tenantVariantPrices.tenantId],
+    references: [tenants.id],
+  }),
+  masterVariant: one(masterVariants, {
+    fields: [tenantVariantPrices.masterVariantId],
+    references: [masterVariants.id],
   }),
 }));

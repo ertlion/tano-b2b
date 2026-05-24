@@ -19,6 +19,26 @@ interface IkasCredentials extends MarketplaceCredentials {
   ikas_refresh_token?: string;
 }
 
+// Master ingest (Epic A) için normalize edilmiş ikas ürün/varyant şekli
+export interface IkasFetchedVariant {
+  externalId: string;
+  sku: string;
+  barcode: string;
+  color: string | null;
+  size: string | null;
+  stockQuantity: number;
+  salePrice: number;
+  costPrice: number;
+  usdPrice: number; // ikas "Dolar B2B" fiyat listesinden USD toptan fiyatı
+}
+
+export interface IkasFetchedProduct {
+  externalId: string;
+  name: string;
+  description: string | null;
+  variants: IkasFetchedVariant[];
+}
+
 interface IkasTokenCache {
   token: string;
   expiresAt: number;
@@ -395,5 +415,124 @@ export class IkasAdapter implements MarketplaceAdapter {
     } catch {
       return [];
     }
+  }
+
+  // ─── MASTER INGEST (Epic A): ikas'tan ürün+varyant çekme ──────
+  // Şema ateliertano canlı mağazasına göre doğrulandı (2026-05-24):
+  //   barcode → barcodeList[0], prices çoklu liste → prices[0],
+  //   stocks lokasyon dizisi → toplam stockCount,
+  //   renk/beden → variantValueIds + listVariantType ile ad çözümü.
+
+  private async getVariantTypeMaps(
+    creds: IkasCredentials
+  ): Promise<{ valueName: Map<string, string>; valueTypeName: Map<string, string> }> {
+    const valueName = new Map<string, string>();
+    const valueTypeName = new Map<string, string>();
+    try {
+      const data = await this.graphql(creds, `query { listVariantType { id name values { id name } } }`);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const vt of (data?.listVariantType ?? []) as any[]) {
+        const typeName = String(vt?.name ?? "");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const val of (vt?.values ?? []) as any[]) {
+          if (val?.id) {
+            valueName.set(String(val.id), String(val.name ?? ""));
+            valueTypeName.set(String(val.id), typeName);
+          }
+        }
+      }
+    } catch {
+      // ad çözümü başarısız olsa bile ürünler çekilir (color/size null kalır)
+    }
+    return { valueName, valueTypeName };
+  }
+
+  async fetchProducts(
+    credentials: MarketplaceCredentials,
+    page = 1,
+    limit = 50,
+    b2bPriceListId?: string
+  ): Promise<{ products: IkasFetchedProduct[]; hasNext: boolean; page: number }> {
+    const creds = credentials as IkasCredentials;
+    const { valueName, valueTypeName } = await this.getVariantTypeMaps(creds);
+
+    const query = `
+      query ListProduct($pagination: PaginationInput) {
+        listProduct(pagination: $pagination) {
+          data {
+            id
+            name
+            description
+            variants {
+              id
+              sku
+              barcodeList
+              prices { sellPrice buyPrice priceListId currencyCode }
+              stocks { stockCount }
+              variantValueIds { variantTypeId variantValueId }
+            }
+          }
+          hasNext
+          page
+          limit
+          count
+        }
+      }
+    `;
+
+    const data = await this.graphql(creds, query, { pagination: { page, limit } });
+    const list = data?.listProduct ?? {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows: any[] = list.data ?? [];
+
+    const products: IkasFetchedProduct[] = rows.map((p) => ({
+      externalId: String(p.id),
+      name: String(p.name ?? ""),
+      description: p.description ? String(p.description) : null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      variants: (p.variants ?? []).map((v: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vvi: any[] = v.variantValueIds ?? [];
+        let color: string | null = null;
+        let size: string | null = null;
+        for (const rel of vvi) {
+          const vid = String(rel?.variantValueId ?? "");
+          const tname = valueTypeName.get(vid) ?? "";
+          const vname = valueName.get(vid) ?? null;
+          if (/renk|color/i.test(tname)) color = vname;
+          else if (/beden|boyut|numara|size/i.test(tname)) size = vname;
+          else if (!size) size = vname;
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const stockCount = (v.stocks ?? []).reduce((s: number, x: any) => s + (Number(x?.stockCount) || 0), 0);
+        const barcodeList = Array.isArray(v.barcodeList) ? v.barcodeList : [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const prices: any[] = v.prices ?? [];
+        // Varsayılan/perakende fiyat: priceListId boş olan; yoksa ilk
+        const defaultPrice = prices.find((p) => !p?.priceListId) ?? prices[0] ?? {};
+        // Dolar B2B (USD toptan): yapılandırılan price list id; yoksa USD para birimli ilk
+        const b2bPrice =
+          (b2bPriceListId && prices.find((p) => p?.priceListId === b2bPriceListId)) ||
+          prices.find((p) => String(p?.currencyCode).toUpperCase() === "USD") ||
+          {};
+        return {
+          externalId: String(v.id),
+          sku: v.sku ? String(v.sku) : "",
+          barcode: barcodeList[0] ? String(barcodeList[0]) : "",
+          color,
+          size,
+          stockQuantity: stockCount,
+          salePrice: Number(defaultPrice.sellPrice) || 0,
+          costPrice: Number(defaultPrice.buyPrice) || 0,
+          usdPrice: Number(b2bPrice.sellPrice) || 0,
+        };
+      }),
+    }));
+
+    return {
+      products,
+      hasNext: Boolean(list.hasNext),
+      page: Number(list.page) || page,
+    };
   }
 }

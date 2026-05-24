@@ -3,7 +3,40 @@ import { tenants, tenantProducts, masterVariants, masterProducts, syncLogs } fro
 import { eq, and } from "drizzle-orm";
 import { getAdapter } from "./marketplace/registry";
 import { resolveCredentials } from "./marketplace/credential-resolver";
+import { getTenantSetting } from "./tenant-settings";
 import type { MarketplaceName } from "./marketplace/types";
+import { ensureVariantSkuMappings, saveExternalIdsForMappings } from "./sku-mapping";
+import { getTenantVariantPrices } from "./pricing";
+
+export const PUSH_IMAGES_SETTING_KEY = "push_images_enabled";
+
+async function tenantPushesImages(tenantId: number): Promise<boolean> {
+  const val = await getTenantSetting(tenantId, PUSH_IMAGES_SETTING_KEY);
+  return val === "true";
+}
+
+function collectImages(
+  variants: Array<{ images?: string[] }>,
+  masterImages: string[]
+): { images: string[]; coverImage: string } {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const v of variants) {
+    for (const url of v.images ?? []) {
+      if (url && !seen.has(url)) {
+        seen.add(url);
+        out.push(url);
+      }
+    }
+  }
+  for (const url of masterImages) {
+    if (url && !seen.has(url)) {
+      seen.add(url);
+      out.push(url);
+    }
+  }
+  return { images: out, coverImage: out[0] || "" };
+}
 
 /**
  * Sync stock for ALL active tenants.
@@ -107,7 +140,8 @@ async function syncTenantStock(
 }
 
 /**
- * Push a product to tenant's marketplace as DRAFT (no images).
+ * Push a product to tenant's marketplace.
+ * Görseller tenant ayarı (push_images_enabled) ile kontrol edilir.
  */
 export async function pushProductToTenant(
   tenantId: number,
@@ -159,32 +193,54 @@ export async function pushProductToTenant(
     return { success: false, error: "Stoklu varyant bulunamadı" };
   }
 
+  // Epic J: her varyant için mağaza bazlı benzersiz SKU + barkod üret/getir.
+  // Pazaryerlerinde ürünler birbiriyle eşleşmesin + sipariş ters eşlemesi için.
+  const skuMap = await ensureVariantSkuMappings(
+    tenantId,
+    marketplace,
+    variants.map((v) => v.id)
+  );
+
+  // Fiyatlandırma: üyenin TL satış fiyatını hesapla (USD B2B × kur × markup / manuel).
+  const priceMap = await getTenantVariantPrices(
+    tenantId,
+    variants.map((v) => ({ id: v.id, usdPrice: Number(v.usdPrice) }))
+  );
+
   // Build unique variant names: color + size, or just color/size if one is missing
   const variantData = variants.map((v) => {
     const parts: string[] = [];
     if (v.color) parts.push(v.color);
     if (v.size && v.size !== "STD") parts.push(v.size);
-    const sizeName = parts.length > 0 ? parts.join(" / ") : `${v.barcode}`;
+    const mapping = skuMap.get(v.id);
+    const storeBarcode = mapping?.storeBarcode ?? v.barcode;
+    const sizeName = parts.length > 0 ? parts.join(" / ") : `${storeBarcode}`;
+    const priced = priceMap.get(v.id);
     return {
       variantId: v.id,
       sizeName,
-      sku: v.sku,
-      barcode: v.barcode,
-      costPrice: Number(v.costPrice),
-      salePrice: Number(v.salePrice),
+      sku: mapping?.storeSku ?? v.sku,
+      barcode: storeBarcode,
+      costPrice: priced ? priced.baseTry : Number(v.costPrice),
+      salePrice: priced ? priced.priceTry : Number(v.salePrice),
       stockQuantity: v.stockQuantity,
       widthCm: null,
       heightCm: null,
     };
   });
 
+  const pushImages = await tenantPushesImages(tenantId);
+  const { images, coverImage } = pushImages
+    ? collectImages(variants, product.images || [])
+    : { images: [], coverImage: "" };
+
   const result = await adapter.pushProduct(credentials, {
     productId: product.id,
     title: product.name,
     description: product.description || "",
     bodyHtml: product.description || "",
-    images: [],
-    coverImage: "",
+    images,
+    coverImage,
     warehouseSku: product.sku,
     categoryMapping: categoryMapping
       ? { externalCategoryId: categoryMapping }
@@ -214,6 +270,22 @@ export async function pushProductToTenant(
           syncedAt: new Date(),
         },
       });
+
+    // Epic J: pazaryeri dış varyant ID'lerini SKU eşleme tablosuna yaz
+    // (externalVariantIds master varyant id ile anahtarlanır).
+    if (result.externalVariantIds) {
+      const extIds: Record<number, string> = {};
+      for (const [k, v] of Object.entries(result.externalVariantIds)) {
+        const id = Number(k);
+        if (!Number.isNaN(id) && typeof v === "string") extIds[id] = v;
+      }
+      await saveExternalIdsForMappings(
+        tenantId,
+        marketplace,
+        result.externalProductId || null,
+        extIds
+      );
+    }
   }
 
   return { success: result.success, error: result.error };

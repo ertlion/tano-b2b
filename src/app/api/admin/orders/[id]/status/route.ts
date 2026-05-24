@@ -16,11 +16,14 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+// Tano Toptan durum makinesi (Epic D):
+// bekleniyor → hazirlanacak → paketlendi → gonderildi (her aşamada iptal mümkün)
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  new: ["processing", "cancelled"],
-  processing: ["shipped", "cancelled"],
-  shipped: ["delivered", "returned"],
-  delivered: ["returned"],
+  bekleniyor: ["hazirlanacak", "cancelled"],
+  hazirlanacak: ["paketlendi", "cancelled"],
+  paketlendi: ["gonderildi", "cancelled"],
+  gonderildi: ["returned"],
+  pending_review: ["bekleniyor", "hazirlanacak", "cancelled"],
   cancelled: [],
   returned: [],
 };
@@ -83,21 +86,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       updatedAt: new Date(),
     };
 
-    if (newStatus === "shipped") {
-      if (cargoCompany) updateData.cargoCompany = cargoCompany;
-      if (cargoTrackingNumber) updateData.cargoTrackingNumber = cargoTrackingNumber;
-
-      // Auto-generate tracking URL if not manually provided
-      if (cargoTrackingUrl) {
-        updateData.cargoTrackingUrl = cargoTrackingUrl;
-      } else if (cargoCompany && cargoTrackingNumber) {
-        const provider = resolveProviderName(cargoCompany);
-        if (provider) {
-          const autoUrl = getCargoTrackingUrl(provider, cargoTrackingNumber);
-          if (autoUrl) {
-            updateData.cargoTrackingUrl = autoUrl;
-          }
-        }
+    // Kargo bilgisi opsiyonel (kargo entegrasyonu pasif) — admin elle girerse kaydet.
+    if (cargoCompany) updateData.cargoCompany = cargoCompany;
+    if (cargoTrackingNumber) updateData.cargoTrackingNumber = cargoTrackingNumber;
+    if (cargoTrackingUrl) {
+      updateData.cargoTrackingUrl = cargoTrackingUrl;
+    } else if (cargoCompany && cargoTrackingNumber) {
+      const provider = resolveProviderName(cargoCompany);
+      if (provider) {
+        const autoUrl = getCargoTrackingUrl(provider, cargoTrackingNumber);
+        if (autoUrl) updateData.cargoTrackingUrl = autoUrl;
       }
     }
 

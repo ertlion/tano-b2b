@@ -39,6 +39,8 @@ export async function GET(request: NextRequest) {
         }
       }
     }
+    // Marketplace dışı genel ayarlar
+    settingsData.push_images_enabled = allSettings.push_images_enabled || "false";
 
     return NextResponse.json({
       success: true,
@@ -85,7 +87,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const allowedKeys = new Set(config.settingsKeys.map((s) => s.key));
+    const allowedKeys = new Set([
+      ...config.settingsKeys.map((s) => s.key),
+      "push_images_enabled",
+    ]);
     const updates: Array<{ key: string; value: string }> = [];
 
     for (const [key, value] of Object.entries(body)) {

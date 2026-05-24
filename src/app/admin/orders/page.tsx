@@ -42,21 +42,23 @@ const STATUS_OPTIONS = [
 ];
 
 const STATUS_BADGE: Record<string, string> = {
-  new: "bg-blue-100 text-blue-700",
-  processing: "bg-blue-100 text-blue-700",
-  preparing: "bg-yellow-100 text-yellow-700",
-  shipped: "bg-purple-100 text-purple-700",
-  delivered: "bg-green-100 text-green-700",
+  bekleniyor: "bg-gray-100 text-gray-700",
+  hazirlanacak: "bg-yellow-100 text-yellow-700",
+  paketlendi: "bg-blue-100 text-blue-700",
+  gonderildi: "bg-green-100 text-green-700",
   cancelled: "bg-red-100 text-red-700",
+  returned: "bg-red-100 text-red-700",
+  pending_review: "bg-orange-100 text-orange-700",
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  new: "Yeni",
-  processing: "İşleniyor",
-  preparing: "Hazırlanıyor",
-  shipped: "Kargoda",
-  delivered: "Teslim Edildi",
+  bekleniyor: "Bekleniyor",
+  hazirlanacak: "Hazırlanacak",
+  paketlendi: "Paketlendi",
+  gonderildi: "Gönderildi",
   cancelled: "İptal",
+  returned: "İade",
+  pending_review: "Onay Bekliyor",
 };
 
 function ProductThumb({ src, alt }: { src: string | null; alt: string }) {

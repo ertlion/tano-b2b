@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { orders, masterVariants, masterProducts } from "@/lib/schema";
+import { orders, orderStatusHistory, masterVariants, masterProducts } from "@/lib/schema";
 import { eq, and, inArray } from "drizzle-orm";
+import { statusAfterDocUpdate } from "@/lib/order-status";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -93,6 +94,78 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
     console.error("[PANEL/ORDERS/:id] GET error:", error);
+    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
+  }
+}
+
+// Üye: fatura ve/veya kargo etiketi yükle (base64 veya URL). null gönderilirse temizler.
+// İkisi de doluysa sipariş "hazirlanacak" olur (Epic D).
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  try {
+    const tenantId = await requireAuth(request);
+    const { id } = await params;
+    const orderId = parseInt(id);
+    if (isNaN(orderId)) {
+      return NextResponse.json({ error: "Geçersiz sipariş ID" }, { status: 400 });
+    }
+
+    const body = await request.json();
+    const order = await db.query.orders.findFirst({
+      where: and(eq(orders.id, orderId), eq(orders.tenantId, tenantId)),
+      columns: { id: true, status: true, invoiceFileUrl: true, cargoLabelFileUrl: true },
+    });
+    if (!order) {
+      return NextResponse.json({ error: "Sipariş bulunamadı" }, { status: 404 });
+    }
+
+    // TODO(Faz 2 - bakiye): bakiyesi olmayan ve izni olmayan üye yükleme yapamasın.
+
+    const invoiceFileUrl =
+      body.invoiceFile === null
+        ? null
+        : typeof body.invoiceFile === "string"
+        ? body.invoiceFile
+        : order.invoiceFileUrl;
+    const cargoLabelFileUrl =
+      body.cargoLabelFile === null
+        ? null
+        : typeof body.cargoLabelFile === "string"
+        ? body.cargoLabelFile
+        : order.cargoLabelFileUrl;
+
+    const hasInvoice = Boolean(invoiceFileUrl);
+    const hasLabel = Boolean(cargoLabelFileUrl);
+    const newStatus = statusAfterDocUpdate(order.status, hasInvoice, hasLabel);
+
+    await db
+      .update(orders)
+      .set({
+        invoiceFileUrl,
+        cargoLabelFileUrl,
+        invoiceUploadedAt: hasInvoice ? new Date() : null,
+        status: newStatus,
+        updatedAt: new Date(),
+      })
+      .where(eq(orders.id, orderId));
+
+    if (newStatus !== order.status) {
+      await db.insert(orderStatusHistory).values({
+        orderId,
+        fromStatus: order.status,
+        toStatus: newStatus,
+        note: "Üye fatura/kargo etiketi güncelledi",
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: { status: newStatus, hasInvoice, hasLabel },
+    });
+  } catch (error) {
+    if (error instanceof Response) {
+      return NextResponse.json({ error: await error.text() }, { status: error.status });
+    }
+    console.error("[PANEL/ORDERS/:id] PATCH error:", error);
     return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }
 }

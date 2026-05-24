@@ -45,6 +45,8 @@ interface OrderDetail {
   cargoCompany: string | null;
   cargoTrackingNumber: string | null;
   cargoTrackingUrl: string | null;
+  invoiceFileUrl: string | null;
+  cargoLabelFileUrl: string | null;
   notes: string | null;
   shippingAddress: ShippingAddress | null;
   items: unknown[];
@@ -55,22 +57,32 @@ interface OrderDetail {
 }
 
 const STATUS_BADGE: Record<string, string> = {
+  bekleniyor: "bg-gray-100 text-gray-700",
+  hazirlanacak: "bg-yellow-100 text-yellow-700",
+  paketlendi: "bg-blue-100 text-blue-700",
+  gonderildi: "bg-green-100 text-green-700",
+  // legacy
   new: "bg-blue-100 text-blue-700",
   processing: "bg-blue-100 text-blue-700",
-  preparing: "bg-yellow-100 text-yellow-700",
   shipped: "bg-purple-100 text-purple-700",
   delivered: "bg-green-100 text-green-700",
   cancelled: "bg-red-100 text-red-700",
+  returned: "bg-red-100 text-red-700",
   pending_review: "bg-orange-100 text-orange-700",
 };
 
 const STATUS_LABEL: Record<string, string> = {
+  bekleniyor: "Bekleniyor",
+  hazirlanacak: "Hazırlanacak",
+  paketlendi: "Paketlendi",
+  gonderildi: "Gönderildi",
+  // legacy
   new: "Yeni",
-  processing: "Isleniyor",
-  preparing: "Hazirlaniyor",
+  processing: "İşleniyor",
   shipped: "Kargoda",
   delivered: "Teslim Edildi",
-  cancelled: "Iptal",
+  cancelled: "İptal",
+  returned: "İade",
   pending_review: "Onay Bekliyor",
 };
 
@@ -89,6 +101,66 @@ function ProductThumb({ src, alt }: { src: string | null; alt: string }) {
   );
 }
 
+function DocUpload({
+  label,
+  fileUrl,
+  busy,
+  disabled,
+  onSelect,
+}: {
+  label: string;
+  fileUrl: string | null;
+  busy: boolean;
+  disabled: boolean;
+  onSelect: (file: File | null) => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-sm font-medium text-gray-700">{label}</p>
+        {fileUrl ? (
+          <span className="inline-flex items-center gap-1 text-xs text-green-700">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Yüklendi
+          </span>
+        ) : (
+          <span className="text-xs text-gray-400">Bekleniyor</span>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <label
+          className={`flex-1 cursor-pointer text-center px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
+            disabled
+              ? "border-gray-100 text-gray-300 cursor-not-allowed"
+              : "border-gray-300 text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          {busy ? "Yükleniyor..." : fileUrl ? "Değiştir" : "Dosya Seç"}
+          <input
+            type="file"
+            accept="application/pdf,image/*"
+            disabled={disabled || busy}
+            className="hidden"
+            onChange={(e) => onSelect(e.target.files?.[0] ?? null)}
+          />
+        </label>
+        {fileUrl && (
+          <a
+            href={fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-2 rounded-lg border border-gray-300 text-xs font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Görüntüle
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function PanelOrderDetailPage() {
   const params = useParams();
   const orderId = params.id as string;
@@ -97,6 +169,8 @@ export default function PanelOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [confirmLoading, setConfirmLoading] = useState(false);
+  const [uploading, setUploading] = useState<"invoice" | "label" | null>(null);
+  const [uploadError, setUploadError] = useState("");
 
   useEffect(() => {
     async function loadOrder() {
@@ -131,6 +205,48 @@ export default function PanelOrderDetailPage() {
       // ignore
     } finally {
       setConfirmLoading(false);
+    }
+  }
+
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleFileUpload(kind: "invoice" | "label", file: File | null) {
+    if (!order || !file) return;
+    setUploadError("");
+    // 10MB sınırı
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError("Dosya 10MB'den büyük olamaz");
+      return;
+    }
+    setUploading(kind);
+    try {
+      const base64 = await fileToBase64(file);
+      const body =
+        kind === "invoice" ? { invoiceFile: base64 } : { cargoLabelFile: base64 };
+      const res = await fetch(`/api/panel/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Yükleme başarısız");
+      setOrder({
+        ...order,
+        status: json.data.status,
+        invoiceFileUrl: kind === "invoice" ? base64 : order.invoiceFileUrl,
+        cargoLabelFileUrl: kind === "label" ? base64 : order.cargoLabelFileUrl,
+      });
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Yükleme başarısız");
+    } finally {
+      setUploading(null);
     }
   }
 
@@ -388,6 +504,37 @@ export default function PanelOrderDetailPage() {
                 <p className="text-sm text-gray-700">{order.notes}</p>
               </div>
             )}
+          </div>
+
+          {/* Fatura & Kargo Etiketi Yükleme (Epic D) */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Fatura & Kargo Etiketi</h2>
+            <p className="text-xs text-gray-500 mb-4">
+              İkisini de yüklediğinizde sipariş <b>Hazırlanacak</b> durumuna geçer ve Tano işleme alır.
+            </p>
+
+            {uploadError && (
+              <div className="mb-3 bg-red-50 border border-red-200 rounded-lg p-2 text-xs text-red-700">
+                {uploadError}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <DocUpload
+                label="Fatura (PDF/Görsel)"
+                fileUrl={order.invoiceFileUrl}
+                busy={uploading === "invoice"}
+                disabled={order.status === "paketlendi" || order.status === "gonderildi"}
+                onSelect={(f) => handleFileUpload("invoice", f)}
+              />
+              <DocUpload
+                label="Kargo Etiketi (PDF/Görsel)"
+                fileUrl={order.cargoLabelFileUrl}
+                busy={uploading === "label"}
+                disabled={order.status === "paketlendi" || order.status === "gonderildi"}
+                onSelect={(f) => handleFileUpload("label", f)}
+              />
+            </div>
           </div>
 
           {/* Status History */}

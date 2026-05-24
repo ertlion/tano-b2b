@@ -232,19 +232,10 @@ async function updateFulfillmentFromPayload(orderId: number, payload: Record<str
   if (trackingNumber) updateData.cargoTrackingNumber = trackingNumber;
   if (trackingUrl) updateData.cargoTrackingUrl = trackingUrl;
 
-  // Auto-update status to "shipped" if not already
-  if (order.status !== "shipped" && order.status !== "delivered" && order.status !== "cancelled") {
-    if (fulfillmentStatus === "success" || trackingNumber) {
-      updateData.status = "shipped";
-
-      await db.insert(orderStatusHistory).values({
-        orderId,
-        fromStatus: order.status,
-        toStatus: "shipped",
-        note: `Kargo: ${trackingCompany} - ${trackingNumber}`,
-      });
-    }
-  }
+  // Tano Toptan (Epic D): pazaryeri fulfillment'ı Tano iç durumunu EZMEZ.
+  // Sipariş durumu üye (fatura+etiket) + admin (işleme alma) tarafından yönetilir.
+  // Buradan yalnızca bilgi amaçlı kargo takip verisi yakalanır.
+  void fulfillmentStatus;
 
   await db.update(orders).set(updateData).where(eq(orders.id, orderId));
 

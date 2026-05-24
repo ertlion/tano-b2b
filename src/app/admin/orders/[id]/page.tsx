@@ -45,6 +45,8 @@ interface OrderDetail {
   cargoCompany: string | null;
   cargoTrackingNumber: string | null;
   cargoTrackingUrl: string | null;
+  invoiceFileUrl: string | null;
+  cargoLabelFileUrl: string | null;
   notes: string | null;
   shippingAddress: ShippingAddress | null;
   items: unknown[];
@@ -55,7 +57,7 @@ interface OrderDetail {
   updatedAt: string;
 }
 
-const ALL_STATUSES = ["new", "processing", "preparing", "shipped", "delivered", "cancelled"];
+const ALL_STATUSES = ["bekleniyor", "hazirlanacak", "paketlendi", "gonderildi", "cancelled"];
 
 const CARGO_COMPANIES = [
   { value: "yurtici", label: "Yurtici Kargo" },
@@ -67,21 +69,23 @@ const CARGO_COMPANIES = [
 ];
 
 const STATUS_BADGE: Record<string, string> = {
-  new: "bg-blue-100 text-blue-700",
-  processing: "bg-blue-100 text-blue-700",
-  preparing: "bg-yellow-100 text-yellow-700",
-  shipped: "bg-purple-100 text-purple-700",
-  delivered: "bg-green-100 text-green-700",
+  bekleniyor: "bg-gray-100 text-gray-700",
+  hazirlanacak: "bg-yellow-100 text-yellow-700",
+  paketlendi: "bg-blue-100 text-blue-700",
+  gonderildi: "bg-green-100 text-green-700",
   cancelled: "bg-red-100 text-red-700",
+  returned: "bg-red-100 text-red-700",
+  pending_review: "bg-orange-100 text-orange-700",
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  new: "Yeni",
-  processing: "İşleniyor",
-  preparing: "Hazırlanıyor",
-  shipped: "Kargoda",
-  delivered: "Teslim Edildi",
+  bekleniyor: "Bekleniyor",
+  hazirlanacak: "Hazırlanacak",
+  paketlendi: "Paketlendi",
+  gonderildi: "Gönderildi",
   cancelled: "İptal",
+  returned: "İade",
+  pending_review: "Onay Bekliyor",
 };
 
 function ProductThumb({ src, alt }: { src: string | null; alt: string }) {
@@ -326,6 +330,36 @@ export default function OrderDetailPage() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Üye Belgeleri: Fatura & Kargo Etiketi (Epic D) */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Üye Belgeleri</h2>
+            <p className="text-xs text-gray-500 mb-4">
+              Üye fatura ve kargo etiketini yüklediğinde sipariş <b>Hazırlanacak</b> olur. İşleme almak için aşağıdan durumu güncelleyin.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="border border-gray-200 rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-1">Fatura</p>
+                {order.invoiceFileUrl ? (
+                  <a href={order.invoiceFileUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+                    Faturayı Görüntüle
+                  </a>
+                ) : (
+                  <span className="text-sm text-gray-400">Yüklenmedi</span>
+                )}
+              </div>
+              <div className="border border-gray-200 rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-1">Kargo Etiketi</p>
+                {order.cargoLabelFileUrl ? (
+                  <a href={order.cargoLabelFileUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+                    Etiketi Görüntüle
+                  </a>
+                ) : (
+                  <span className="text-sm text-gray-400">Yüklenmedi</span>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Items */}
