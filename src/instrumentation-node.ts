@@ -14,6 +14,27 @@ export async function runMigrations() {
 
   // Her biri bağımsız ve idempotent. Sırayla çalışır; biri hata verirse loglanır, devam edilir.
   const statements: string[] = [
+    // ── 0001: XML/ikas entegrasyonu (eski prod'da uygulanmamış olabilir) ──
+    `ALTER TABLE "master_products" ADD COLUMN IF NOT EXISTS "external_id" varchar(100)`,
+    `ALTER TABLE "master_products" ADD COLUMN IF NOT EXISTS "source" varchar(20) DEFAULT 'manual' NOT NULL`,
+    `DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'master_products_external_id_unique') THEN
+        ALTER TABLE "master_products" ADD CONSTRAINT "master_products_external_id_unique" UNIQUE ("external_id"); END IF;
+    END $$`,
+    `ALTER TABLE "master_variants" ADD COLUMN IF NOT EXISTS "external_id" varchar(100)`,
+    `ALTER TABLE "master_variants" ADD COLUMN IF NOT EXISTS "images" json DEFAULT '[]'::json NOT NULL`,
+    `CREATE TABLE IF NOT EXISTS "xml_feeds" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "name" varchar(255) NOT NULL,
+      "url" text NOT NULL,
+      "interval_minutes" integer DEFAULT 60 NOT NULL,
+      "is_active" boolean DEFAULT true NOT NULL,
+      "last_run_at" timestamp,
+      "last_run_status" varchar(20),
+      "last_run_summary" json,
+      "created_at" timestamp DEFAULT now() NOT NULL,
+      "updated_at" timestamp DEFAULT now() NOT NULL
+    )`,
     // ── 0002: sipariş akışı + SKU eşleme + ikas sync state ──
     `ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "invoice_file_url" text`,
     `ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "cargo_label_file_url" text`,
@@ -79,14 +100,17 @@ export async function runMigrations() {
     `INSERT INTO "app_config" ("key", "value") VALUES ('ikas_b2b_price_list_id', 'e8cf9a61-ac0e-495a-9d9e-8be79a6ece94') ON CONFLICT ("key") DO NOTHING`,
   ];
 
-  try {
-    for (const s of statements) {
+  let ok = 0;
+  let fail = 0;
+  for (const s of statements) {
+    try {
       await sql.unsafe(s);
+      ok++;
+    } catch (e) {
+      fail++;
+      console.error(`[migrate] ifade hatası (atlandı): ${(e as Error).message} :: ${s.slice(0, 80)}`);
     }
-    console.log(`[migrate] ${statements.length} ifade uygulandı (idempotent)`);
-  } catch (e) {
-    console.error("[migrate] hata (uygulama yine de başlatılıyor):", e);
-  } finally {
-    await sql.end();
   }
+  await sql.end();
+  console.log(`[migrate] tamam: ${ok} başarılı, ${fail} hatalı (idempotent)`);
 }
