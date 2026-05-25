@@ -77,6 +77,26 @@ export default function AdminSyncPage() {
   const [data, setData] = useState<SyncData | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("tenants");
+  const [ikasBusy, setIkasBusy] = useState<"sync" | "purge" | null>(null);
+  const [ikasMsg, setIkasMsg] = useState("");
+
+  async function runIkas(action: "sync" | "purge") {
+    if (action === "purge" && !confirm("ikas-dışı (eski) tüm ürünler ve bağlı kayıtları silinecek. Emin misiniz?")) return;
+    setIkasBusy(action);
+    setIkasMsg("");
+    try {
+      const url = action === "sync" ? "/api/admin/ikas-sync" : "/api/admin/purge-non-ikas";
+      const res = await fetch(url, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "İşlem başarısız");
+      if (action === "sync") setIkasMsg(`Senkron tamam: ${json.data?.productsUpserted ?? 0} ürün, ${json.data?.variantsUpserted ?? 0} varyant`);
+      else setIkasMsg(`${json.data?.deletedProducts ?? 0} eski ürün silindi`);
+    } catch (e) {
+      setIkasMsg(e instanceof Error ? e.message : "Hata");
+    } finally {
+      setIkasBusy(null);
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -134,6 +154,21 @@ export default function AdminSyncPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Mağaza Sync</h1>
+
+      {/* ikas Master kontrolleri */}
+      <div className="bg-white rounded-lg border border-gray-200 p-5">
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">ikas Master Katalog</h2>
+        <p className="text-xs text-gray-500 mb-3">Otomatik senkron her 3 dakikada bir çalışır. Aşağıdan elle de tetikleyebilirsiniz.</p>
+        {ikasMsg && <div className="mb-3 p-2 rounded bg-blue-50 border border-blue-200 text-blue-700 text-sm">{ikasMsg}</div>}
+        <div className="flex gap-2">
+          <button onClick={() => runIkas("sync")} disabled={ikasBusy !== null} className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg">
+            {ikasBusy === "sync" ? "Senkronize ediliyor..." : "Şimdi Senkronize Et"}
+          </button>
+          <button onClick={() => runIkas("purge")} disabled={ikasBusy !== null} className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg">
+            {ikasBusy === "purge" ? "Temizleniyor..." : "Eski (ikas-dışı) Ürünleri Temizle"}
+          </button>
+        </div>
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">

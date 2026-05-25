@@ -192,3 +192,34 @@ export async function runMigrations() {
   await sql.end();
   console.log(`[migrate] tamam: ${ok} başarılı, ${fail} hatalı (idempotent)`);
 }
+
+// ─── ikas Otomatik Sync (her 3 dk, in-process) ─────────────
+// Her zaman açık Node sunucusunda çalışır; harici cron gerekmez.
+// Çakışma korumalı (önceki tick bitmediyse atlar).
+let _autoSyncStarted = false;
+export function startIkasAutoSync(): void {
+  if (_autoSyncStarted) return;
+  _autoSyncStarted = true;
+
+  let running = false;
+  const tick = async () => {
+    if (running) return;
+    running = true;
+    try {
+      const { getMasterIkasCredentials, syncMasterCatalogFromIkas } = await import("./lib/ikas-master-sync");
+      if (await getMasterIkasCredentials()) {
+        const s = await syncMasterCatalogFromIkas();
+        console.log(`[auto-sync] ikas: ${s.productsUpserted} ürün, ${s.variantsUpserted} varyant, ${s.errors.length} hata`);
+      }
+    } catch (e) {
+      console.error("[auto-sync] hata:", e);
+    } finally {
+      running = false;
+    }
+  };
+
+  const intervalMs = (Number(process.env.IKAS_SYNC_INTERVAL_MIN) || 3) * 60_000;
+  setTimeout(tick, 30_000); // boot sonrası ilk tetik
+  setInterval(tick, intervalMs);
+  console.log(`[auto-sync] ikas otomatik senkron aktif (her ${intervalMs / 60000} dk)`);
+}
