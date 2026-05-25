@@ -30,12 +30,14 @@ export interface IkasFetchedVariant {
   salePrice: number;
   costPrice: number;
   usdPrice: number; // ikas "Dolar B2B" fiyat listesinden USD toptan fiyatı
+  images: string[];
 }
 
 export interface IkasFetchedProduct {
   externalId: string;
   name: string;
   description: string | null;
+  images: string[];
   variants: IkasFetchedVariant[];
 }
 
@@ -447,6 +449,22 @@ export class IkasAdapter implements MarketplaceAdapter {
     return { valueName, valueTypeName };
   }
 
+  // ikas görsel CDN URL'si: https://cdn.myikas.com/images/{merchantId}/{imageId}/image_{size}.webp
+  private _merchantId?: string;
+  private async getMerchantId(creds: IkasCredentials): Promise<string> {
+    if (this._merchantId) return this._merchantId;
+    try {
+      const data = await this.graphql(creds, `query { getMerchant { id } }`);
+      this._merchantId = String(data?.getMerchant?.id ?? "");
+    } catch {
+      this._merchantId = "";
+    }
+    return this._merchantId;
+  }
+  private imageUrl(merchantId: string, imageId: string): string {
+    return `https://cdn.myikas.com/images/${merchantId}/${imageId}/image_1080.webp`;
+  }
+
   async fetchProducts(
     credentials: MarketplaceCredentials,
     page = 1,
@@ -455,6 +473,7 @@ export class IkasAdapter implements MarketplaceAdapter {
   ): Promise<{ products: IkasFetchedProduct[]; hasNext: boolean; page: number }> {
     const creds = credentials as IkasCredentials;
     const { valueName, valueTypeName } = await this.getVariantTypeMaps(creds);
+    const merchantId = await this.getMerchantId(creds);
 
     const query = `
       query ListProduct($pagination: PaginationInput) {
@@ -470,6 +489,7 @@ export class IkasAdapter implements MarketplaceAdapter {
               prices { sellPrice buyPrice priceListId currencyCode }
               stocks { stockCount }
               variantValueIds { variantTypeId variantValueId }
+              images { imageId isMain order }
             }
           }
           hasNext
@@ -485,12 +505,11 @@ export class IkasAdapter implements MarketplaceAdapter {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rows: any[] = list.data ?? [];
 
-    const products: IkasFetchedProduct[] = rows.map((p) => ({
-      externalId: String(p.id),
-      name: String(p.name ?? ""),
-      description: p.description ? String(p.description) : null,
+    const products: IkasFetchedProduct[] = rows.map((p) => {
+      const productImages: string[] = [];
+      const seenImg = new Set<string>();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      variants: (p.variants ?? []).map((v: any) => {
+      const buildVariants = (p.variants ?? []).map((v: any) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const vvi: any[] = v.variantValueIds ?? [];
         let color: string | null = null;
@@ -515,6 +534,17 @@ export class IkasAdapter implements MarketplaceAdapter {
           (b2bPriceListId && prices.find((p) => p?.priceListId === b2bPriceListId)) ||
           prices.find((p) => String(p?.currencyCode).toUpperCase() === "USD") ||
           {};
+        // Varyant görselleri → CDN URL'leri (isMain/order sırasıyla)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const imgs: any[] = Array.isArray(v.images) ? v.images : [];
+        imgs.sort((a, b) => (b?.isMain ? 1 : 0) - (a?.isMain ? 1 : 0) || (Number(a?.order) || 0) - (Number(b?.order) || 0));
+        const variantImages: string[] = [];
+        for (const im of imgs) {
+          if (!im?.imageId || !merchantId) continue;
+          const url = this.imageUrl(merchantId, String(im.imageId));
+          variantImages.push(url);
+          if (!seenImg.has(url)) { seenImg.add(url); productImages.push(url); }
+        }
         return {
           externalId: String(v.id),
           sku: v.sku ? String(v.sku) : "",
@@ -525,9 +555,17 @@ export class IkasAdapter implements MarketplaceAdapter {
           salePrice: Number(defaultPrice.sellPrice) || 0,
           costPrice: Number(defaultPrice.buyPrice) || 0,
           usdPrice: Number(b2bPrice.sellPrice) || 0,
+          images: variantImages,
         };
-      }),
-    }));
+      });
+      return {
+        externalId: String(p.id),
+        name: String(p.name ?? ""),
+        description: p.description ? String(p.description) : null,
+        images: productImages,
+        variants: buildVariants,
+      };
+    });
 
     return {
       products,

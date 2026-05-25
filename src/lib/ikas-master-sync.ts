@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { masterProducts, masterVariants, stockMovements, syncLogs, ikasSyncState, appConfig } from "./schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { IkasAdapter } from "./marketplace/adapters/ikas.adapter";
 import type { IkasFetchedProduct } from "./marketplace/adapters/ikas.adapter";
 import type { MarketplaceCredentials } from "./marketplace/types";
@@ -149,6 +149,7 @@ async function upsertProduct(p: IkasFetchedProduct, summary: SyncSummary): Promi
       .set({
         name: p.name || existing.name,
         description: p.description,
+        images: p.images ?? [],
         source: "ikas",
         updatedAt: new Date(),
       })
@@ -162,6 +163,7 @@ async function upsertProduct(p: IkasFetchedProduct, summary: SyncSummary): Promi
         externalId: p.externalId,
         name: p.name || sku,
         description: p.description,
+        images: p.images ?? [],
         source: "ikas",
         status: "active",
       })
@@ -203,6 +205,7 @@ async function upsertProduct(p: IkasFetchedProduct, summary: SyncSummary): Promi
           costPrice: String(v.costPrice),
           salePrice: String(v.salePrice),
           usdPrice: String(v.usdPrice),
+          images: v.images ?? [],
           updatedAt: new Date(),
         })
         .where(eq(masterVariants.id, existingVariant.id));
@@ -218,6 +221,7 @@ async function upsertProduct(p: IkasFetchedProduct, summary: SyncSummary): Promi
         costPrice: String(v.costPrice),
         salePrice: String(v.salePrice),
         usdPrice: String(v.usdPrice),
+        images: v.images ?? [],
       });
       summary.stockChanges += 1;
     }
@@ -257,6 +261,36 @@ export async function applyIkasStockUpdate(
     );
   }
   return true;
+}
+
+/**
+ * ikas-dışı (eski) master ürünleri ve bağımlı kayıtlarını siler.
+ * FK sırasına göre. Master katalog SADECE ikas'tan gelecek (kullanıcı kararı).
+ */
+export async function purgeNonIkasProducts(): Promise<{ deletedProducts: number }> {
+  const PSEL = sql`(SELECT id FROM master_products WHERE source <> 'ikas')`;
+  const VSEL = sql`(SELECT id FROM master_variants WHERE master_product_id IN ${PSEL})`;
+
+  // Önce sayalım (rapor için)
+  const [{ cnt }] = await db.execute<{ cnt: number }>(
+    sql`SELECT count(*)::int AS cnt FROM master_products WHERE source <> 'ikas'`
+  );
+
+  // Bağımlı kayıtlar (varyant bazlı)
+  await db.execute(sql`DELETE FROM tenant_variant_skus WHERE master_variant_id IN ${VSEL}`);
+  await db.execute(sql`DELETE FROM tenant_variant_prices WHERE master_variant_id IN ${VSEL}`);
+  await db.execute(sql`DELETE FROM stock_movements WHERE master_variant_id IN ${VSEL}`);
+  await db.execute(sql`DELETE FROM returns WHERE master_variant_id IN ${VSEL}`);
+  // Ürün bazlı
+  await db.execute(sql`DELETE FROM generated_images WHERE master_product_id IN ${PSEL}`);
+  await db.execute(sql`DELETE FROM ai_image_jobs WHERE master_product_id IN ${PSEL}`);
+  await db.execute(sql`DELETE FROM tenant_products WHERE master_product_id IN ${PSEL}`);
+  await db.execute(sql`DELETE FROM tenant_product_permissions WHERE master_product_id IN ${PSEL}`);
+  // Son: varyantlar, sonra ürünler
+  await db.execute(sql`DELETE FROM master_variants WHERE master_product_id IN (SELECT id FROM master_products WHERE source <> 'ikas')`);
+  await db.execute(sql`DELETE FROM master_products WHERE source <> 'ikas'`);
+
+  return { deletedProducts: Number(cnt) || 0 };
 }
 
 async function getConfig(key: string): Promise<string | null> {
