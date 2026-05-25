@@ -1,6 +1,6 @@
 import { db } from "./db";
-import { tenants, tenantProducts, masterVariants, masterProducts, syncLogs } from "./schema";
-import { eq, and } from "drizzle-orm";
+import { tenants, tenantProducts, masterVariants, masterProducts, syncLogs, generatedImages } from "./schema";
+import { eq, and, asc } from "drizzle-orm";
 import { getAdapter } from "./marketplace/registry";
 import { resolveCredentials } from "./marketplace/credential-resolver";
 import { getTenantSetting } from "./tenant-settings";
@@ -230,9 +230,28 @@ export async function pushProductToTenant(
   });
 
   const pushImages = await tenantPushesImages(tenantId);
-  const { images, coverImage } = pushImages
+  let { images, coverImage } = pushImages
     ? collectImages(variants, product.images || [])
-    : { images: [], coverImage: "" };
+    : { images: [] as string[], coverImage: "" };
+
+  // Üyenin bu ürün için ÜRETTİĞİ AI görselleri öne ekle (kendi kanalına gitsin).
+  if (pushImages) {
+    const gen = await db.query.generatedImages.findMany({
+      where: and(
+        eq(generatedImages.tenantId, tenantId),
+        eq(generatedImages.masterProductId, masterProductId),
+        eq(generatedImages.isActive, true)
+      ),
+      orderBy: [asc(generatedImages.sortOrder), asc(generatedImages.id)],
+      columns: { url: true },
+    });
+    if (gen.length > 0) {
+      const genUrls = gen.map((g) => g.url);
+      const seen = new Set(genUrls);
+      images = [...genUrls, ...images.filter((u) => !seen.has(u))];
+      coverImage = genUrls[0];
+    }
+  }
 
   const result = await adapter.pushProduct(credentials, {
     productId: product.id,
