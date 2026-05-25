@@ -72,6 +72,7 @@ interface SyncSummary {
   productsUpserted: number;
   variantsUpserted: number;
   stockChanges: number;
+  deactivated: number;
   errors: string[];
 }
 
@@ -83,8 +84,11 @@ export async function syncMasterCatalogFromIkas(): Promise<SyncSummary> {
     productsUpserted: 0,
     variantsUpserted: 0,
     stockChanges: 0,
+    deactivated: 0,
     errors: [],
   };
+  // Bu sync'te güncellenmeyen ikas ürünlerini bulmak için başlangıç zamanı.
+  const syncStart = new Date();
 
   const creds = await getMasterIkasCredentials();
   if (!creds) {
@@ -100,6 +104,7 @@ export async function syncMasterCatalogFromIkas(): Promise<SyncSummary> {
     undefined;
   let page = 1;
   let hasNext = true;
+  let completedFully = false;
 
   try {
     while (hasNext) {
@@ -117,12 +122,19 @@ export async function syncMasterCatalogFromIkas(): Promise<SyncSummary> {
       page += 1;
       if (page > 1000) break; // güvenlik freni
     }
+    completedFully = !hasNext; // döngü hasNext=false ile bittiyse eksiksiz
+
+    // ikas'ta artık olmayan (bu sync'te güncellenmeyen) ürünleri pasifle.
+    // SADECE eksiksiz ve anlamlı bir sync olduysa — yoksa ağ hatasında hepsi pasifleşmesin.
+    if (completedFully && summary.productsUpserted > 0) {
+      summary.deactivated = await deactivateMissingIkasProducts(syncStart);
+    }
 
     await setSyncState("last_full_sync", new Date().toISOString());
     await recordSyncLog(summary.errors.length === 0 ? "success" : "partial", summary);
 
-    // Stok değiştiyse tüm tenant kanallarına yay (Epic B)
-    if (summary.stockChanges > 0) {
+    // Stok değiştiyse / ürün pasifleştiyse tüm tenant kanallarına yay (Epic B)
+    if (summary.stockChanges > 0 || summary.deactivated > 0) {
       syncAllTenantsStock().catch((e) =>
         console.error("[IKAS-MASTER-SYNC] propagate failed:", e)
       );
@@ -151,6 +163,7 @@ async function upsertProduct(p: IkasFetchedProduct, summary: SyncSummary): Promi
         description: p.description,
         images: p.images ?? [],
         source: "ikas",
+        status: "active", // ikas'ta tekrar görülürse yeniden aktifleştir
         updatedAt: new Date(),
       })
       .where(eq(masterProducts.id, existing.id));
@@ -261,6 +274,30 @@ export async function applyIkasStockUpdate(
     );
   }
   return true;
+}
+
+/**
+ * Bu sync'te güncellenmeyen (ikas'tan artık gelmeyen = silinmiş) ikas ürünlerini
+ * pasifleştir (status='passive') ve varyant stoklarını 0'a çek (kanallardan düşsün).
+ * before: sync başlangıç zamanı; updated_at < before olanlar bu turda görülmedi demektir.
+ */
+async function deactivateMissingIkasProducts(before: Date): Promise<number> {
+  const ts = before.toISOString();
+  // Önce stokları 0'la (kanal senkronu 0 yazsın)
+  await db.execute(sql`
+    UPDATE master_variants SET stock_quantity = 0, updated_at = now()
+    WHERE stock_quantity <> 0 AND master_product_id IN (
+      SELECT id FROM master_products WHERE source = 'ikas' AND status = 'active' AND updated_at < ${ts}::timestamp
+    )`);
+  // Ürünleri pasifle
+  const res = await db.execute<{ id: number }>(sql`
+    UPDATE master_products SET status = 'passive', updated_at = now()
+    WHERE source = 'ikas' AND status = 'active' AND updated_at < ${ts}::timestamp
+    RETURNING id`);
+  // postgres-js: execute sonucu satır dizisi döner
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = res as unknown as any[];
+  return Array.isArray(rows) ? rows.length : 0;
 }
 
 /**
