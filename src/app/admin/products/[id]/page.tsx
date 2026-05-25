@@ -13,6 +13,7 @@ interface Variant {
   stockQuantity: number;
   costPrice: string;
   salePrice: string;
+  images: string[];
 }
 
 interface Product {
@@ -357,6 +358,43 @@ export default function ProductDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Renge Göre Görseller (varyant bazlı) */}
+      {(() => {
+        const groups = new Map<string, string[]>();
+        for (const v of product.masterVariants) {
+          const color = (v.color || "Diğer").trim();
+          const arr = groups.get(color) || [];
+          for (const img of v.images || []) if (!arr.includes(img)) arr.push(img);
+          groups.set(color, arr);
+        }
+        const entries = Array.from(groups.entries()).filter(([, imgs]) => imgs.length > 0);
+        if (entries.length === 0) return null;
+        return (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Renge Göre Görseller</h2>
+            <p className="text-xs text-gray-500 mb-4">Her renk varyantının görselleri ayrı. Görsel oluştururken bu renklerden seçilir.</p>
+            <div className="space-y-5">
+              {entries.map(([color, imgs]) => (
+                <div key={color}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2.5 py-1 bg-gray-100 rounded-full text-sm font-medium text-gray-800">{color}</span>
+                    <span className="text-xs text-gray-400">{imgs.length} görsel</span>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-2">
+                    {imgs.map((img, i) => (
+                      <div key={i} className="aspect-[3/4] rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={img} alt={`${color} ${i + 1}`} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Variants Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
