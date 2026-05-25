@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getConfigValue } from "@/lib/app-config";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -8,11 +9,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "store parametresi gerekli (storeName veya store)" }, { status: 400 });
   }
 
-  const clientId = process.env.IKAS_APP_CLIENT_ID;
+  const clientId = await getConfigValue("ikas_app_client_id");
   const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/ikas/callback`;
 
   if (!clientId) {
-    return NextResponse.json({ error: "IKAS_APP_CLIENT_ID yapılandırılmamış" }, { status: 500 });
+    return NextResponse.json({ error: "ikas app client id yapılandırılmamış" }, { status: 500 });
   }
 
   // Clean store URL

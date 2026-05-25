@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { settings } from "@/lib/schema";
 import { eq, and } from "drizzle-orm";
+import { getConfigValue } from "@/lib/app-config";
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,8 +14,8 @@ export async function GET(request: NextRequest) {
       return redirectWithError("Yetkilendirme kodu veya mağaza bilgisi eksik.");
     }
 
-    const clientId = process.env.IKAS_APP_CLIENT_ID;
-    const clientSecret = process.env.IKAS_APP_CLIENT_SECRET;
+    const clientId = await getConfigValue("ikas_app_client_id");
+    const clientSecret = await getConfigValue("ikas_app_client_secret");
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
     const redirectUri = `${appUrl}/api/auth/ikas/callback`;
 

@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   if (!authorize(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!getMasterIkasCredentials()) {
+  if (!(await getMasterIkasCredentials())) {
     return NextResponse.json({ skipped: true, reason: "IKAS_MASTER_* tanımsız" });
   }
   const summary = await syncMasterCatalogFromIkas();

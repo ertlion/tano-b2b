@@ -585,3 +585,46 @@ export const balanceTopups = pgTable("balance_topups", {
 export const balanceTopupsRelations = relations(balanceTopups, ({ one }) => ({
   tenant: one(tenants, { fields: [balanceTopups.tenantId], references: [tenants.id] }),
 }));
+
+// ─── AI GÖRSEL ÜRETİMİ (Epic G) ────────────────────────────
+export const aiImageJobs = pgTable("ai_image_jobs", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  masterProductId: integer("master_product_id").references(() => masterProducts.id),
+  params: json("params"), // { sceneId, modelOptions, angle, sourceImages, ... }
+  count: integer("count").default(1).notNull(),
+  cost: numeric("cost", { precision: 12, scale: 2 }).default("0").notNull(),
+  status: varchar("status", { length: 20 }).default("pending").notNull(), // pending|processing|done|failed
+  error: text("error"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const aiImageJobsRelations = relations(aiImageJobs, ({ one, many }) => ({
+  tenant: one(tenants, { fields: [aiImageJobs.tenantId], references: [tenants.id] }),
+  masterProduct: one(masterProducts, {
+    fields: [aiImageJobs.masterProductId],
+    references: [masterProducts.id],
+  }),
+  images: many(generatedImages),
+}));
+
+export const generatedImages = pgTable("generated_images", {
+  id: serial("id").primaryKey(),
+  jobId: integer("job_id").references(() => aiImageJobs.id),
+  tenantId: integer("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  masterProductId: integer("master_product_id").references(() => masterProducts.id),
+  url: text("url").notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const generatedImagesRelations = relations(generatedImages, ({ one }) => ({
+  job: one(aiImageJobs, { fields: [generatedImages.jobId], references: [aiImageJobs.id] }),
+  tenant: one(tenants, { fields: [generatedImages.tenantId], references: [tenants.id] }),
+}));

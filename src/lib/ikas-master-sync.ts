@@ -5,6 +5,7 @@ import { IkasAdapter } from "./marketplace/adapters/ikas.adapter";
 import type { IkasFetchedProduct } from "./marketplace/adapters/ikas.adapter";
 import type { MarketplaceCredentials } from "./marketplace/types";
 import { syncAllTenantsStock } from "./sync-engine";
+import { getConfigValues } from "./app-config";
 
 // ─── ikas Master Stok Entegrasyonu (Epic A) ────────────────────
 //
@@ -21,16 +22,21 @@ interface IkasMasterCredentials extends MarketplaceCredentials {
 }
 
 /**
- * Master ikas (ateliertano) credential'ları. İki model desteklenir:
- *  1) Private App (client_credentials): IKAS_MASTER_API_KEY + IKAS_MASTER_API_SECRET
- *  2) OAuth (authorization_code): önceden alınmış IKAS_MASTER_ACCESS_TOKEN
- *     (adapter token'ı doğrudan kullanır, oauth/token adımını atlar)
+ * Master ikas (ateliertano) credential'ları (admin panel / app_config → env).
+ *  1) Private App (client_credentials): ikas_master_api_key + ikas_master_api_secret
+ *  2) OAuth: önceden alınmış ikas_master_access_token (adapter doğrudan kullanır)
  */
-export function getMasterIkasCredentials(): IkasMasterCredentials | null {
-  const store = process.env.IKAS_MASTER_STORE_URL || "ateliertano";
-  const accessToken = process.env.IKAS_MASTER_ACCESS_TOKEN;
-  const key = process.env.IKAS_MASTER_API_KEY;
-  const secret = process.env.IKAS_MASTER_API_SECRET;
+export async function getMasterIkasCredentials(): Promise<IkasMasterCredentials | null> {
+  const c = await getConfigValues([
+    "ikas_master_store_url",
+    "ikas_master_access_token",
+    "ikas_master_api_key",
+    "ikas_master_api_secret",
+  ]);
+  const store = c.ikas_master_store_url || "ateliertano";
+  const accessToken = c.ikas_master_access_token;
+  const key = c.ikas_master_api_key;
+  const secret = c.ikas_master_api_secret;
 
   // OAuth: hazır access token varsa onu kullan
   if (accessToken) {
@@ -80,7 +86,7 @@ export async function syncMasterCatalogFromIkas(): Promise<SyncSummary> {
     errors: [],
   };
 
-  const creds = getMasterIkasCredentials();
+  const creds = await getMasterIkasCredentials();
   if (!creds) {
     summary.errors.push("IKAS_MASTER_* env değişkenleri tanımlı değil");
     await recordSyncLog("error", summary);

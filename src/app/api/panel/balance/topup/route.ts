@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   try {
     const tenantId = await requireAuth(request);
 
-    if (!paytrConfigured()) {
+    if (!(await paytrConfigured())) {
       return NextResponse.json({ error: "PayTR yapılandırılmamış" }, { status: 503 });
     }
 

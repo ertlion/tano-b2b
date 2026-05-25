@@ -1,15 +1,22 @@
 import crypto from "crypto";
+import { getConfigValues } from "./app-config";
 
 // ─── PayTR iFrame API (Epic F) ─────────────────────────────
 // Bakiye yükleme: token al → iframe göster → callback ile doğrula → bakiye ekle.
-// Env: PAYTR_MERCHANT_ID, PAYTR_MERCHANT_KEY, PAYTR_MERCHANT_SALT, PAYTR_TEST_MODE(0/1)
+// Config (admin panel / app_config → env): paytr_merchant_id/key/salt/test_mode
 
-export function paytrConfigured(): boolean {
-  return Boolean(
-    process.env.PAYTR_MERCHANT_ID &&
-      process.env.PAYTR_MERCHANT_KEY &&
-      process.env.PAYTR_MERCHANT_SALT
-  );
+async function paytrCreds() {
+  return getConfigValues([
+    "paytr_merchant_id",
+    "paytr_merchant_key",
+    "paytr_merchant_salt",
+    "paytr_test_mode",
+  ]);
+}
+
+export async function paytrConfigured(): Promise<boolean> {
+  const c = await paytrCreds();
+  return Boolean(c.paytr_merchant_id && c.paytr_merchant_key && c.paytr_merchant_salt);
 }
 
 interface TokenParams {
@@ -30,10 +37,11 @@ interface TokenParams {
  * PayTR get-token çağrısı. Başarılıysa iframe token döner.
  */
 export async function getPaytrToken(p: TokenParams): Promise<{ ok: boolean; token?: string; error?: string }> {
-  const merchant_id = process.env.PAYTR_MERCHANT_ID!;
-  const merchant_key = process.env.PAYTR_MERCHANT_KEY!;
-  const merchant_salt = process.env.PAYTR_MERCHANT_SALT!;
-  const test_mode = process.env.PAYTR_TEST_MODE === "1" ? "1" : "0";
+  const c = await paytrCreds();
+  const merchant_id = c.paytr_merchant_id!;
+  const merchant_key = c.paytr_merchant_key!;
+  const merchant_salt = c.paytr_merchant_salt!;
+  const test_mode = c.paytr_test_mode === "1" ? "1" : "0";
   const no_installment = "0";
   const max_installment = "0";
   const currency = "TL";
@@ -101,9 +109,10 @@ export async function getPaytrToken(p: TokenParams): Promise<{ ok: boolean; toke
 /**
  * Callback hash doğrulama. PayTR şunu gönderir: merchant_oid, status, total_amount, hash.
  */
-export function verifyPaytrCallback(merchantOid: string, status: string, totalAmount: string, hash: string): boolean {
-  const merchant_key = process.env.PAYTR_MERCHANT_KEY;
-  const merchant_salt = process.env.PAYTR_MERCHANT_SALT;
+export async function verifyPaytrCallback(merchantOid: string, status: string, totalAmount: string, hash: string): Promise<boolean> {
+  const c = await paytrCreds();
+  const merchant_key = c.paytr_merchant_key;
+  const merchant_salt = c.paytr_merchant_salt;
   if (!merchant_key || !merchant_salt) return false;
   const expected = crypto
     .createHmac("sha256", merchant_key)

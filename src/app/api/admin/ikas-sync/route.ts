@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   try {
     await requireAdmin(request);
 
-    if (!getMasterIkasCredentials()) {
+    if (!(await getMasterIkasCredentials())) {
       return NextResponse.json(
         { error: "ikas master credential'ları (IKAS_MASTER_*) tanımlı değil" },
         { status: 400 }

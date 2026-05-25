@@ -137,6 +137,29 @@ export async function runMigrations() {
       IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'balance_topups_merchant_oid_unique') THEN
         ALTER TABLE "balance_topups" ADD CONSTRAINT "balance_topups_merchant_oid_unique" UNIQUE ("merchant_oid"); END IF;
     END $$`,
+    // ── 0007: AI görsel üretimi (Epic G) ──
+    `CREATE TABLE IF NOT EXISTS "ai_image_jobs" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "tenant_id" integer NOT NULL REFERENCES "tenants"("id"),
+      "master_product_id" integer REFERENCES "master_products"("id"),
+      "params" json,
+      "count" integer DEFAULT 1 NOT NULL,
+      "cost" numeric(12,2) DEFAULT '0' NOT NULL,
+      "status" varchar(20) DEFAULT 'pending' NOT NULL,
+      "error" text,
+      "created_at" timestamp DEFAULT now() NOT NULL,
+      "completed_at" timestamp
+    )`,
+    `CREATE TABLE IF NOT EXISTS "generated_images" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "job_id" integer REFERENCES "ai_image_jobs"("id"),
+      "tenant_id" integer NOT NULL REFERENCES "tenants"("id"),
+      "master_product_id" integer REFERENCES "master_products"("id"),
+      "url" text NOT NULL,
+      "sort_order" integer DEFAULT 0 NOT NULL,
+      "is_active" boolean DEFAULT true NOT NULL,
+      "created_at" timestamp DEFAULT now() NOT NULL
+    )`,
   ];
 
   let ok = 0;

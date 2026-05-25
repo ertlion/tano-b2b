@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const hash = String(form.get("hash") || "");
     const failedReason = String(form.get("failed_reason_msg") || "");
 
-    if (!merchantOid || !verifyPaytrCallback(merchantOid, status, totalAmount, hash)) {
+    if (!merchantOid || !(await verifyPaytrCallback(merchantOid, status, totalAmount, hash))) {
       console.error("[WEBHOOK/PAYTR] Hash doğrulanamadı:", merchantOid);
       return new NextResponse("PAYTR notification failed: bad hash", { status: 400 });
     }
