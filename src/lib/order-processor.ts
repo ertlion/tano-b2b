@@ -200,6 +200,15 @@ export async function processIncomingOrder(order: IncomingOrder): Promise<Proces
       console.error("[ORDER-PROCESSOR] syncAllTenantsStock failed:", err);
     });
 
+    // 7. Telegram bildirimi (Epic I) — yeni sipariş
+    import("./telegram")
+      .then(({ notifyTenant }) =>
+        notifyTenant(order.tenantId, "order", {
+          text: `🛒 Yeni sipariş: <b>${order.orderNumber}</b> (${order.marketplace})\nMüşteri: ${order.customerName}\nTutar: ${order.totalAmount} ${order.currency ?? "TRY"}`,
+        })
+      )
+      .catch(() => {});
+
     return { success: true, orderId: created.id };
   } catch (err) {
     console.error("[ORDER-PROCESSOR] Unexpected error:", err);

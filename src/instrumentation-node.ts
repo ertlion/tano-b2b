@@ -160,6 +160,22 @@ export async function runMigrations() {
       "is_active" boolean DEFAULT true NOT NULL,
       "created_at" timestamp DEFAULT now() NOT NULL
     )`,
+    // ── 0008: defolu ürün bildirimi (Epic H) ──
+    `CREATE TABLE IF NOT EXISTS "defect_reports" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "tenant_id" integer NOT NULL REFERENCES "tenants"("id"),
+      "order_id" integer NOT NULL REFERENCES "orders"("id"),
+      "images" json DEFAULT '[]'::json NOT NULL,
+      "description" text,
+      "status" varchar(20) DEFAULT 'pending' NOT NULL,
+      "admin_note" text,
+      "created_at" timestamp DEFAULT now() NOT NULL,
+      "updated_at" timestamp DEFAULT now() NOT NULL
+    )`,
+    // ── 0009: tenant telegram alanları (Epic I) ──
+    `ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "telegram_username" varchar(100)`,
+    `ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "telegram_chat_id" varchar(50)`,
+    `ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "telegram_prefs" json`,
   ];
 
   let ok = 0;

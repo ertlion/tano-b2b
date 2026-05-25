@@ -32,6 +32,10 @@ export const tenants = pgTable("tenants", {
   imageUnitPrice: numeric("image_unit_price", { precision: 10, scale: 2 }).default("0").notNull(),
   // Bakiyesi yokken fatura/kargo etiketi yükleyebilsin mi? (admin kullanıcı bazlı)
   allowActionWithoutBalance: boolean("allow_action_without_balance").default(false).notNull(),
+  // Telegram bildirimleri (Epic I)
+  telegramUsername: varchar("telegram_username", { length: 100 }),
+  telegramChatId: varchar("telegram_chat_id", { length: 50 }),
+  telegramPrefs: json("telegram_prefs"), // { order, defect, low_balance, image_ready }
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -627,4 +631,26 @@ export const generatedImages = pgTable("generated_images", {
 export const generatedImagesRelations = relations(generatedImages, ({ one }) => ({
   job: one(aiImageJobs, { fields: [generatedImages.jobId], references: [aiImageJobs.id] }),
   tenant: one(tenants, { fields: [generatedImages.tenantId], references: [tenants.id] }),
+}));
+
+// ─── DEFOLU ÜRÜN BİLDİRİMİ (Epic H) ────────────────────────
+export const defectReports = pgTable("defect_reports", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  orderId: integer("order_id")
+    .notNull()
+    .references(() => orders.id),
+  images: json("images").$type<string[]>().default([]).notNull(),
+  description: text("description"),
+  status: varchar("status", { length: 20 }).default("pending").notNull(), // pending|approved|rejected
+  adminNote: text("admin_note"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const defectReportsRelations = relations(defectReports, ({ one }) => ({
+  tenant: one(tenants, { fields: [defectReports.tenantId], references: [tenants.id] }),
+  order: one(orders, { fields: [defectReports.orderId], references: [orders.id] }),
 }));

@@ -32,6 +32,9 @@ const FIELDS: Field[] = [
   // Gemini
   { key: "gemini_api_key", label: "API Key", group: "AI Görsel (Gemini)", secret: true },
   { key: "gemini_image_model", label: "Model (varsayılan gemini-3-pro-image-preview)", group: "AI Görsel (Gemini)" },
+  // Telegram
+  { key: "telegram_bot_token", label: "Bot Token", group: "Telegram", secret: true },
+  { key: "telegram_bot_username", label: "Bot Kullanıcı Adı (@'siz)", group: "Telegram" },
   // S3 storage
   { key: "s3_endpoint", label: "Endpoint (R2/MinIO; S3 ise boş)", group: "Görsel Depolama (S3)" },
   { key: "s3_region", label: "Region (S3) / auto (R2)", group: "Görsel Depolama (S3)" },
