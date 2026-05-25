@@ -11,18 +11,21 @@ import { eq } from "drizzle-orm";
 import { sendOrderStatusEmail } from "@/lib/mailer";
 import { syncAllTenantsStock } from "@/lib/sync-engine";
 import { getCargoTrackingUrl, resolveProviderName } from "@/lib/cargo/registry";
+import { addBalance } from "@/lib/balance";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-// Tano Toptan durum makinesi (Epic D):
-// bekleniyor → hazirlanacak → paketlendi → gonderildi (her aşamada iptal mümkün)
+// Tano Toptan durum makinesi (Epic D + Epic E):
+// bekleniyor → hazirlanacak → paketlendi → gonderildi.
+// İptal SADECE fatura/etiket yüklenmemişken (bekleniyor / pending_review) mümkün.
+// hazirlanacak ve sonrası iptal edilemez (belge yüklenmiş sayılır).
 const VALID_TRANSITIONS: Record<string, string[]> = {
   bekleniyor: ["hazirlanacak", "cancelled"],
-  hazirlanacak: ["paketlendi", "cancelled"],
-  paketlendi: ["gonderildi", "cancelled"],
-  gonderildi: ["returned"],
+  hazirlanacak: ["paketlendi"],
+  paketlendi: ["gonderildi"],
+  gonderildi: [],
   pending_review: ["bekleniyor", "hazirlanacak", "cancelled"],
   cancelled: [],
   returned: [],
@@ -131,15 +134,22 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    // If cancelled or returned: restore stock
+    // If cancelled or returned: restore stock + refund product balance (Epic E)
     if (newStatus === "cancelled" || newStatus === "returned") {
       try {
         await restoreOrderStock(order.id, order.items, newStatus);
         syncAllTenantsStock().catch((err) => {
           console.error("[ORDERS/STATUS] Stock sync after restore failed:", err);
         });
+        const charged = Number(order.balanceCharged) || 0;
+        if (charged > 0) {
+          await addBalance(order.tenantId, "product", charged, "refund", {
+            reference: `iptal#${order.orderNumber}`,
+            note: "Sipariş iptali bakiye iadesi",
+          });
+        }
       } catch (err) {
-        console.error("[ORDERS/STATUS] Stock restore failed:", err);
+        console.error("[ORDERS/STATUS] Stock/balance restore failed:", err);
       }
     }
 

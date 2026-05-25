@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { orders, orderStatusHistory, masterVariants, masterProducts } from "@/lib/schema";
+import { orders, orderStatusHistory, masterVariants, masterProducts, tenants } from "@/lib/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { statusAfterDocUpdate } from "@/lib/order-status";
+import { getBalance } from "@/lib/balance";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -118,7 +119,28 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Sipariş bulunamadı" }, { status: 404 });
     }
 
-    // TODO(Faz 2 - bakiye): bakiyesi olmayan ve izni olmayan üye yükleme yapamasın.
+    // Bakiye kapısı (Epic E): borçtaki (negatif ürün bakiyesi) üye, izni yoksa
+    // fatura/kargo etiketi yükleyemez. Dosya yükleme/güncelleme deneniyorsa kontrol et.
+    const isUploading = body.invoiceFile != null || body.cargoLabelFile != null;
+    if (isUploading) {
+      const t = await db.query.tenants.findFirst({
+        where: eq(tenants.id, tenantId),
+        columns: { allowActionWithoutBalance: true },
+      });
+      if (!t?.allowActionWithoutBalance) {
+        const productBalance = await getBalance(tenantId, "product");
+        if (productBalance < 0) {
+          return NextResponse.json(
+            {
+              error:
+                "Bakiyeniz yetersiz (borçta). Fatura/kargo etiketi yükleyebilmek için bakiye yükleyin.",
+              code: "INSUFFICIENT_BALANCE",
+            },
+            { status: 403 }
+          );
+        }
+      }
+    }
 
     const invoiceFileUrl =
       body.invoiceFile === null

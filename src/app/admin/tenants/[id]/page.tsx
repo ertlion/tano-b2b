@@ -58,6 +58,75 @@ export default function TenantDetailPage() {
   const [cariLoading, setCariLoading] = useState(true);
   const [cariData, setCariData] = useState<{ totalDebt: number; totalPaid: number; balance: number } | null>(null);
 
+  // Bakiye (Epic E)
+  const [bal, setBal] = useState<{ product: number; image: number }>({ product: 0, image: 0 });
+  const [imageUnitPrice, setImageUnitPrice] = useState("0");
+  const [allowNoBalance, setAllowNoBalance] = useState(false);
+  const [addType, setAddType] = useState<"product" | "image">("product");
+  const [addAmount, setAddAmount] = useState("");
+  const [balMsg, setBalMsg] = useState("");
+  const [balBusy, setBalBusy] = useState(false);
+
+  const loadBalances = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/balances?tenantId=${tenantId}`);
+      const json = await res.json();
+      if (json.data) {
+        setBal(json.data.balances);
+        setImageUnitPrice(String(json.data.imageUnitPrice ?? 0));
+        setAllowNoBalance(Boolean(json.data.allowActionWithoutBalance));
+      }
+    } catch {
+      // ignore
+    }
+  }, [tenantId]);
+
+  useEffect(() => {
+    loadBalances();
+  }, [loadBalances]);
+
+  async function handleAddBalance() {
+    setBalBusy(true);
+    setBalMsg("");
+    try {
+      const res = await fetch("/api/admin/balances", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId: Number(tenantId), type: addType, amount: Number(addAmount) }),
+      });
+      if (!res.ok) throw new Error();
+      setAddAmount("");
+      setBalMsg("Bakiye eklendi");
+      await loadBalances();
+    } catch {
+      setBalMsg("Eklenemedi");
+    } finally {
+      setBalBusy(false);
+    }
+  }
+
+  async function handleSaveBalanceSettings() {
+    setBalBusy(true);
+    setBalMsg("");
+    try {
+      const res = await fetch("/api/admin/balances", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: Number(tenantId),
+          imageUnitPrice: Number(imageUnitPrice),
+          allowActionWithoutBalance: allowNoBalance,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      setBalMsg("Ayarlar kaydedildi");
+    } catch {
+      setBalMsg("Kaydedilemedi");
+    } finally {
+      setBalBusy(false);
+    }
+  }
+
   // Permission states
   const [permModalOpen, setPermModalOpen] = useState(false);
   const [permProducts, setPermProducts] = useState<PermissionProduct[]>([]);
@@ -426,6 +495,60 @@ export default function TenantDetailPage() {
             {discountMsg}
           </p>
         )}
+      </div>
+
+      {/* Bakiye (Epic E) */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Bakiye</h2>
+        {balMsg && <p className="text-xs mb-3 text-blue-600">{balMsg}</p>}
+
+        <div className="grid grid-cols-2 gap-4 mb-5">
+          <div className="border border-gray-100 rounded-lg p-3">
+            <p className="text-xs text-gray-500">Ürün Bakiyesi</p>
+            <p className={`text-xl font-bold ${bal.product < 0 ? "text-red-600" : "text-gray-900"}`}>
+              {bal.product.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺
+            </p>
+          </div>
+          <div className="border border-gray-100 rounded-lg p-3">
+            <p className="text-xs text-gray-500">AI Görsel Bakiyesi</p>
+            <p className="text-xl font-bold text-gray-900">
+              {bal.image.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺
+            </p>
+          </div>
+        </div>
+
+        {/* Manuel bakiye ekle */}
+        <div className="flex items-end gap-2 mb-5">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Tip</label>
+            <select value={addType} onChange={(e) => setAddType(e.target.value as "product" | "image")} className="px-2 py-2 border border-gray-300 rounded-lg text-sm">
+              <option value="product">Ürün</option>
+              <option value="image">AI Görsel</option>
+            </select>
+          </div>
+          <div className="w-36">
+            <label className="block text-xs text-gray-500 mb-1">Tutar (₺)</label>
+            <input type="number" step="0.01" value={addAmount} onChange={(e) => setAddAmount(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <button onClick={handleAddBalance} disabled={balBusy || !addAmount} className="px-4 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg">
+            Bakiye Ekle
+          </button>
+        </div>
+
+        {/* Ayarlar */}
+        <div className="border-t border-gray-100 pt-4 flex items-end gap-4 flex-wrap">
+          <div className="w-44">
+            <label className="block text-xs text-gray-500 mb-1">Görsel Birim Fiyatı (₺)</label>
+            <input type="number" step="0.01" value={imageUnitPrice} onChange={(e) => setImageUnitPrice(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-700 pb-2">
+            <input type="checkbox" checked={allowNoBalance} onChange={(e) => setAllowNoBalance(e.target.checked)} className="w-4 h-4" />
+            Bakiyesiz fatura/etiket yükleyebilsin
+          </label>
+          <button onClick={handleSaveBalanceSettings} disabled={balBusy} className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg">
+            Ayarları Kaydet
+          </button>
+        </div>
       </div>
 
       {/* Orders Summary */}

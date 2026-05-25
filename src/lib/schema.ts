@@ -28,6 +28,10 @@ export const tenants = pgTable("tenants", {
   discountRate: numeric("discount_rate", { precision: 5, scale: 2 }).default("0").notNull(),
   // Üyenin varsayılan kar marjı (%). Varyant bazlı override yoksa bu uygulanır.
   defaultMarkupPercent: numeric("default_markup_percent", { precision: 6, scale: 2 }).default("0").notNull(),
+  // AI görsel üretiminde görsel başına düşülecek birim fiyat (TL) — kullanıcı bazlı.
+  imageUnitPrice: numeric("image_unit_price", { precision: 10, scale: 2 }).default("0").notNull(),
+  // Bakiyesi yokken fatura/kargo etiketi yükleyebilsin mi? (admin kullanıcı bazlı)
+  allowActionWithoutBalance: boolean("allow_action_without_balance").default(false).notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -186,6 +190,8 @@ export const orders = pgTable("orders", {
   invoiceUploadedAt: timestamp("invoice_uploaded_at"),
   // Tek havuz stok idempotency: bu sipariş için master stok bir kez düşüldü mü?
   stockApplied: boolean("stock_applied").default(false).notNull(),
+  // Sipariş geldiğinde ürün bakiyesinden düşülen B2B maliyet (TL). İptalde tam iade için.
+  balanceCharged: numeric("balance_charged", { precision: 12, scale: 2 }).default("0").notNull(),
   cargoCompany: varchar("cargo_company", { length: 100 }),
   cargoTrackingNumber: varchar("cargo_tracking_number", { length: 255 }),
   cargoTrackingUrl: text("cargo_tracking_url"),
@@ -520,4 +526,43 @@ export const tenantVariantPricesRelations = relations(tenantVariantPrices, ({ on
     fields: [tenantVariantPrices.masterVariantId],
     references: [masterVariants.id],
   }),
+}));
+
+// ─── BALANCES (Bakiye/Cüzdan - Epic E) ─────────────────────
+// İki tip bakiye: 'product' (ürün/sipariş) ve 'image' (AI görsel). Tenant başına tek satır/tip.
+export const balances = pgTable(
+  "balances",
+  {
+    id: serial("id").primaryKey(),
+    tenantId: integer("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    type: varchar("type", { length: 10 }).notNull(), // 'product' | 'image'
+    amount: numeric("amount", { precision: 12, scale: 2 }).default("0").notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("balances_tenant_type_idx").on(table.tenantId, table.type)]
+);
+
+export const balancesRelations = relations(balances, ({ one }) => ({
+  tenant: one(tenants, { fields: [balances.tenantId], references: [tenants.id] }),
+}));
+
+// Bakiye hareket defteri (ledger). amount işaretli (+ yükleme, - düşüm).
+export const balanceTransactions = pgTable("balance_transactions", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  type: varchar("type", { length: 10 }).notNull(), // 'product' | 'image'
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(), // işaretli
+  balanceAfter: numeric("balance_after", { precision: 12, scale: 2 }).notNull(),
+  reason: varchar("reason", { length: 30 }).notNull(), // admin_add, order, image_gen, paytr_load, transfer, refund
+  reference: varchar("reference", { length: 255 }),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const balanceTransactionsRelations = relations(balanceTransactions, ({ one }) => ({
+  tenant: one(tenants, { fields: [balanceTransactions.tenantId], references: [tenants.id] }),
 }));

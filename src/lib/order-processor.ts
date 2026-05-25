@@ -3,6 +3,8 @@ import { orders, masterVariants, masterProducts, stockMovements, returns } from 
 import { eq, and, sql } from "drizzle-orm";
 import { syncAllTenantsStock } from "./sync-engine";
 import { resolveByStoreSkuOrBarcode } from "./sku-mapping";
+import { getUsdTryRate } from "./pricing";
+import { deductBalance } from "./balance";
 
 // ─── TYPES ────────────────────────────────────────────────
 
@@ -60,6 +62,7 @@ export async function processIncomingOrder(order: IncomingOrder): Promise<Proces
       size: string;
       quantity: number;
       unitPrice: number;
+      usdPrice: number;
     }> = [];
 
     for (const item of order.items) {
@@ -80,6 +83,7 @@ export async function processIncomingOrder(order: IncomingOrder): Promise<Proces
         size: item.size ?? variant.size,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        usdPrice: Number(variant.usdPrice),
       });
     }
 
@@ -141,6 +145,23 @@ export async function processIncomingOrder(order: IncomingOrder): Promise<Proces
       stockApplied = true;
     }
 
+    // 4b. Ürün bakiyesinden B2B maliyeti düş (Epic E). Sipariş geldiğinde,
+    // toptan maliyet = Σ usdPrice × kur × adet. Yetersizse bile düşer (borç oluşur).
+    let balanceCharged = 0;
+    if (!requiresReview) {
+      const rate = await getUsdTryRate();
+      balanceCharged =
+        Math.round(
+          processedItems.reduce((sum, it) => sum + it.usdPrice * rate * it.quantity, 0) * 100
+        ) / 100;
+      if (balanceCharged > 0) {
+        await deductBalance(order.tenantId, "product", balanceCharged, "order", {
+          reference: `${order.marketplace}#${order.orderNumber}`,
+          force: true,
+        });
+      }
+    }
+
     // 5. Create order record
     const orderNotes = requiresReview
       ? `[REVIEW GEREKLI] ${returnWarnings.join("; ")}`
@@ -169,6 +190,7 @@ export async function processIncomingOrder(order: IncomingOrder): Promise<Proces
         currency: order.currency ?? "TRY",
         status: requiresReview ? "pending_review" : "bekleniyor",
         stockApplied,
+        balanceCharged: String(balanceCharged),
         notes: orderNotes,
       })
       .returning({ id: orders.id });
