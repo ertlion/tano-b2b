@@ -36,6 +36,11 @@ export default function SettingsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // USD→TL kuru (app_config)
+  const [usdRate, setUsdRate] = useState("");
+  const [rateSaving, setRateSaving] = useState(false);
+  const [rateMsg, setRateMsg] = useState("");
+
   // Parasut state
   const [parasut, setParasut] = useState<ParasutSettings>({
     parasut_client_id: "",
@@ -112,6 +117,33 @@ export default function SettingsPage() {
       .then((json) => setTenantList(json.data || []))
       .catch(() => {});
   }, []);
+
+  // Load USD rate
+  useEffect(() => {
+    fetch("/api/admin/config")
+      .then((r) => r.json())
+      .then((json) => setUsdRate(json.data?.usd_try_rate || ""))
+      .catch(() => {});
+  }, []);
+
+  async function handleRateSave() {
+    setRateSaving(true);
+    setRateMsg("");
+    try {
+      const res = await fetch("/api/admin/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usd_try_rate: usdRate }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Kaydedilemedi");
+      setRateMsg("Kur kaydedildi");
+    } catch (e) {
+      setRateMsg(e instanceof Error ? e.message : "Hata");
+    } finally {
+      setRateSaving(false);
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -271,6 +303,38 @@ export default function SettingsPage() {
       {success && (
         <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">{success}</div>
       )}
+
+      {/* Dolar Kuru (USD B2B fiyatlandırma temeli) */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Dolar Kuru (USD → TL)</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Ürün fiyatları ikas &quot;Dolar B2B&quot; (USD) listesinden gelir. Bu kur ile TL&apos;ye çevrilir; üyeler kendi kar marjını uygular.
+        </p>
+        {rateMsg && (
+          <div className="mb-3 p-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-sm">{rateMsg}</div>
+        )}
+        <div className="flex items-end gap-3">
+          <div className="w-48">
+            <label className="block text-sm font-medium text-gray-700 mb-1">1 USD kaç TL?</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={usdRate}
+              onChange={(e) => setUsdRate(e.target.value)}
+              placeholder="45.50"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <button
+            onClick={handleRateSave}
+            disabled={rateSaving || !usdRate}
+            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg text-sm"
+          >
+            {rateSaving ? "Kaydediliyor..." : "Kuru Kaydet"}
+          </button>
+        </div>
+      </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">SMTP Ayarlari</h2>
