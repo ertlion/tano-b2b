@@ -121,6 +121,22 @@ export async function runMigrations() {
       "created_at" timestamp DEFAULT now() NOT NULL
     )`,
     `ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "balance_charged" numeric(12,2) DEFAULT '0' NOT NULL`,
+    // ── 0006: PayTR bakiye yükleme (Epic F) ──
+    `CREATE TABLE IF NOT EXISTS "balance_topups" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "tenant_id" integer NOT NULL REFERENCES "tenants"("id"),
+      "merchant_oid" varchar(64) NOT NULL,
+      "balance_type" varchar(10) NOT NULL,
+      "amount" numeric(12,2) NOT NULL,
+      "status" varchar(20) DEFAULT 'pending' NOT NULL,
+      "fail_reason" text,
+      "created_at" timestamp DEFAULT now() NOT NULL,
+      "completed_at" timestamp
+    )`,
+    `DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'balance_topups_merchant_oid_unique') THEN
+        ALTER TABLE "balance_topups" ADD CONSTRAINT "balance_topups_merchant_oid_unique" UNIQUE ("merchant_oid"); END IF;
+    END $$`,
   ];
 
   let ok = 0;

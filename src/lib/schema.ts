@@ -566,3 +566,22 @@ export const balanceTransactions = pgTable("balance_transactions", {
 export const balanceTransactionsRelations = relations(balanceTransactions, ({ one }) => ({
   tenant: one(tenants, { fields: [balanceTransactions.tenantId], references: [tenants.id] }),
 }));
+
+// ─── BALANCE TOPUPS (PayTR bakiye yükleme - Epic F) ────────
+export const balanceTopups = pgTable("balance_topups", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  merchantOid: varchar("merchant_oid", { length: 64 }).notNull().unique(),
+  balanceType: varchar("balance_type", { length: 10 }).notNull(), // product | image
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  status: varchar("status", { length: 20 }).default("pending").notNull(), // pending | success | failed
+  failReason: text("fail_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const balanceTopupsRelations = relations(balanceTopups, ({ one }) => ({
+  tenant: one(tenants, { fields: [balanceTopups.tenantId], references: [tenants.id] }),
+}));

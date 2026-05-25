@@ -34,20 +34,109 @@ export default function BalancePage() {
   const [data, setData] = useState<BalanceData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  // Bakiye yükleme modalı
+  const [modalOpen, setModalOpen] = useState(false);
+  const [loadType, setLoadType] = useState<"product" | "image">("product");
+  const [loadAmount, setLoadAmount] = useState("");
+  const [loadBusy, setLoadBusy] = useState(false);
+  const [loadErr, setLoadErr] = useState("");
+  const [iframeUrl, setIframeUrl] = useState("");
+  const [topupMsg, setTopupMsg] = useState("");
+
+  function loadData() {
     fetch("/api/panel/balance")
       .then((r) => r.json())
       .then((j) => setData(j.data))
       .catch(() => {})
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    loadData();
+    const q = new URLSearchParams(window.location.search).get("topup");
+    if (q === "ok") setTopupMsg("Ödeme alındı, bakiyeniz güncellenecek.");
+    else if (q === "fail") setTopupMsg("Ödeme tamamlanamadı.");
   }, []);
+
+  async function startTopup() {
+    setLoadBusy(true);
+    setLoadErr("");
+    try {
+      const res = await fetch("/api/panel/balance/topup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: loadType, amount: Number(loadAmount) }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Başlatılamadı");
+      setIframeUrl(json.data.iframeUrl);
+    } catch (e) {
+      setLoadErr(e instanceof Error ? e.message : "Hata");
+    } finally {
+      setLoadBusy(false);
+    }
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+    setIframeUrl("");
+    setLoadAmount("");
+    setLoadErr("");
+    loadData();
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Bakiyem</h1>
-        <p className="text-sm text-gray-500">Ürün ve AI görsel bakiyeniz ile son hareketler.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Bakiyem</h1>
+          <p className="text-sm text-gray-500">Ürün ve AI görsel bakiyeniz ile son hareketler.</p>
+        </div>
+        <button
+          onClick={() => setModalOpen(true)}
+          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm"
+        >
+          + Bakiye Yükle
+        </button>
       </div>
+
+      {topupMsg && (
+        <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-sm">{topupMsg}</div>
+      )}
+
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={closeModal}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Bakiye Yükle</h2>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            </div>
+            <div className="p-6">
+              {!iframeUrl ? (
+                <div className="space-y-4">
+                  {loadErr && <div className="p-2 rounded bg-red-50 border border-red-200 text-red-700 text-sm">{loadErr}</div>}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bakiye Tipi</label>
+                    <select value={loadType} onChange={(e) => setLoadType(e.target.value as "product" | "image")} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                      <option value="product">Ürün Bakiyesi</option>
+                      <option value="image">AI Görsel Bakiyesi</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tutar (₺)</label>
+                    <input type="number" step="1" min="1" value={loadAmount} onChange={(e) => setLoadAmount(e.target.value)} placeholder="500" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                  </div>
+                  <button onClick={startTopup} disabled={loadBusy || !loadAmount} className="w-full px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg text-sm">
+                    {loadBusy ? "Hazırlanıyor..." : "Ödemeye Geç"}
+                  </button>
+                </div>
+              ) : (
+                <iframe src={iframeUrl} title="PayTR" className="w-full" style={{ height: "60vh", border: "none" }} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
